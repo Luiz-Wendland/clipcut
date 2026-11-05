@@ -32,7 +32,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "WiX heat failed with exit code $LASTEXITCODE" }
     & $Candle -nologo "-dSourceDir=$Stage" -out (Join-Path $WixWork "") $Wxs $Harvest
     if ($LASTEXITCODE -ne 0) { throw "WiX candle failed with exit code $LASTEXITCODE" }
-    & $Light -nologo -out $Installer (Join-Path $WixWork "clipcut-product.wixobj") (Join-Path $WixWork "harvest.wixobj")
+    & $Light -nologo -ext WixUIExtension -out $Installer (Join-Path $WixWork "clipcut-product.wixobj") (Join-Path $WixWork "harvest.wixobj")
     if ($LASTEXITCODE -ne 0) { throw "WiX light failed with exit code $LASTEXITCODE" }
 } finally {
     Remove-Item $Stage -Recurse -Force -ErrorAction SilentlyContinue
