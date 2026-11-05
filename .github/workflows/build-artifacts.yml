@@ -20,7 +20,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libegl1 libpulse0 libpipewire-0.3-0
+          sudo apt-get install -y ffmpeg libegl1 libpulse0 pulseaudio
       - name: Install Python build dependencies
         run: |
           python -m pip install -r requirements-build.txt patchelf==0.19.3.0
@@ -29,6 +29,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
         run: |
+          pulseaudio --start --exit-idle-time=-1
           python -m unittest discover -s tests -v
           qmllint Main.qml DesignTokens.qml components/*.qml
       - name: Build standalone Linux app
