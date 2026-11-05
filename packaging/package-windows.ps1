@@ -30,6 +30,11 @@ try {
     $Light = (Get-Command light.exe -ErrorAction Stop).Source
     & $Heat dir $Stage -arch x64 -cg ClipCutFiles -dr INSTALLFOLDER -var var.SourceDir -gg -sfrag -srd -out $Harvest
     if ($LASTEXITCODE -ne 0) { throw "WiX heat failed with exit code $LASTEXITCODE" }
+    [xml]$HarvestDocument = Get-Content -Path $Harvest -Raw
+    foreach ($Component in $HarvestDocument.SelectNodes("//*[local-name()='Component']")) {
+        $Component.SetAttribute("Win64", "yes")
+    }
+    $HarvestDocument.Save($Harvest)
     & $Candle -nologo "-dSourceDir=$Stage" -out (Join-Path $WixWork "") $Wxs $Harvest
     if ($LASTEXITCODE -ne 0) { throw "WiX candle failed with exit code $LASTEXITCODE" }
     & $Light -nologo -ext WixUIExtension -out $Installer (Join-Path $WixWork "clipcut-product.wixobj") (Join-Path $WixWork "harvest.wixobj")
