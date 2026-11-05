@@ -10,6 +10,10 @@ O ClipCut é um projeto pessoal: um editor de vídeo local pensado para cortar c
 
 O vídeo promocional e seu projeto Remotion ficam em [`promo/`](promo/README.md). A interface do vídeo é reconstruída em React/CSS a partir dos componentes e tokens QML reais; a prévia dentro do player é uma ilustração original gerada por código.
 
+## Downloads
+
+[Baixar ClipCut para Windows (ZIP/MSI) ou Linux (AppImage/tar.gz)](https://github.com/Luiz-Wendland/clipcut/releases/tag/v0.1.0).
+
 ## Interface
 
 O tema padrão combina superfícies escuras, detalhes lavanda e controles compactos. Em **Preferências → Aparência**, é possível alternar entre o tema do ClipCut e as cores do KDE Plasma quando disponíveis; também há uma opção para reduzir animações.
@@ -58,9 +62,9 @@ qmllint Main.qml DesignTokens.qml components/*.qml
 
 Os testes cobrem proporções, enquadramento, seleção de encoder, exportação e proteção contra sobrescrita. A disponibilidade dos módulos Qt e do `qmllint` varia conforme a instalação do Qt.
 
-## Pacotes Windows
+## Pacotes
 
-O workflow de builds publica o ZIP portátil e o instalador MSI como artefatos do GitHub Actions. Ambos incluem o aplicativo e as dependências Qt/Python; FFmpeg e ffprobe devem ser instalados separadamente e estar no `PATH`.
+Os pacotes Windows incluem o ZIP portátil e o instalador MSI; Linux inclui AppImage e tar.gz. Todos incluem o aplicativo e as dependências Qt/Python; FFmpeg e ffprobe devem ser instalados separadamente e estar no `PATH`.
 
 ## Licença
 
