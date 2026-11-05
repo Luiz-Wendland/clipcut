@@ -1,0 +1,76 @@
+name: Build distributables
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install -r requirements-build.txt patchelf==0.19.3.0
+      - name: Test source app
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+        run: |
+          python -m unittest discover -s tests -v
+          qmllint Main.qml DesignTokens.qml components/*.qml
+      - name: Build standalone Linux app
+        run: pyside6-deploy -c pysidedeploy.spec --no-install --no-warn --keep-deployment-files
+      - name: Download verified AppImage packer
+        run: |
+          curl -fsSL https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -o /tmp/appimagetool
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  /tmp/appimagetool" | sha256sum --check --strict
+          chmod +x /tmp/appimagetool
+      - name: Package Linux tar.gz and AppImage
+        env:
+          APPIMAGETOOL: /tmp/appimagetool
+        run: packaging/package-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clipcut-linux-x86_64
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Install Python build dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Generate Windows deployment configuration
+        shell: pwsh
+        run: |
+          Remove-Item pysidedeploy.spec
+          pyside6-deploy main.py --init --name ClipCut --mode standalone --no-install
+          python scripts/ensure_multimedia_plugin.py
+      - name: Build standalone Windows app
+        run: pyside6-deploy -c pysidedeploy.spec --no-install --no-warn --keep-deployment-files
+      - name: Package Windows zip
+        shell: pwsh
+        run: packaging/package-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clipcut-windows-x86_64
+          path: dist/ClipCut-windows-x86_64.zip
+          if-no-files-found: error

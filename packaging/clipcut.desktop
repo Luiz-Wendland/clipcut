@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ClipCut
+Comment=Editor local de vídeo para cortar clipes
+Exec=AppRun %F
+Icon=clipcut
+Categories=AudioVideo;Video;AudioVideoEditing;
+Terminal=false
+MimeType=video/mp4;video/x-matroska;video/quicktime;video/webm;video/x-msvideo;

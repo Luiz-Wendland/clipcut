@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+*.partial.mp4
+*.partial.mkv
+deployment/
+dist/
+build/
+*.AppImage
