@@ -28,7 +28,7 @@ try {
     $Heat = (Get-Command heat.exe -ErrorAction Stop).Source
     $Candle = (Get-Command candle.exe -ErrorAction Stop).Source
     $Light = (Get-Command light.exe -ErrorAction Stop).Source
-    & $Heat dir $Stage -cg ClipCutFiles -dr INSTALLFOLDER -var var.SourceDir -gg -sfrag -srd -out $Harvest
+    & $Heat dir $Stage -arch x64 -cg ClipCutFiles -dr INSTALLFOLDER -var var.SourceDir -gg -sfrag -srd -out $Harvest
     if ($LASTEXITCODE -ne 0) { throw "WiX heat failed with exit code $LASTEXITCODE" }
     & $Candle -nologo "-dSourceDir=$Stage" -out (Join-Path $WixWork "") $Wxs $Harvest
     if ($LASTEXITCODE -ne 0) { throw "WiX candle failed with exit code $LASTEXITCODE" }
