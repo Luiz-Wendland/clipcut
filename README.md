@@ -1,6 +1,14 @@
 # ClipCut
 
-Editor de vídeo local para reproduzir, selecionar, enquadrar e exportar trechos. A interface usa PySide6 e Qt Quick; FFmpeg e ffprobe cuidam da leitura e exportação de mídia. Os arquivos permanecem no computador.
+O ClipCut é um projeto pessoal: um editor de vídeo local pensado para cortar clipes com facilidade e praticidade, sem depender de um fluxo pesado de edição. Ele permite reproduzir, selecionar, enquadrar e exportar trechos; PySide6 e Qt Quick compõem a interface, enquanto FFmpeg e ffprobe cuidam da mídia. Os arquivos permanecem no computador.
+
+## Prévia animada
+
+![Prévia animada do ClipCut: seleção de trecho na timeline](assets/promo/clipcut-preview.gif)
+
+🎬 [Assistir ao vídeo promocional completo (MP4, 1080p, 32 s)](assets/promo/clipcut-promo-1080p.mp4)
+
+O vídeo promocional e seu projeto Remotion ficam em [`promo/`](promo/README.md). A interface do vídeo é reconstruída em React/CSS a partir dos componentes e tokens QML reais; a prévia dentro do player é uma ilustração original gerada por código.
 
 ## Interface
 
@@ -49,6 +57,10 @@ qmllint Main.qml DesignTokens.qml components/*.qml
 ```
 
 Os testes cobrem proporções, enquadramento, seleção de encoder, exportação e proteção contra sobrescrita. A disponibilidade dos módulos Qt e do `qmllint` varia conforme a instalação do Qt.
+
+## Pacotes Windows
+
+O workflow de builds publica o ZIP portátil e o instalador MSI como artefatos do GitHub Actions. Ambos incluem o aplicativo e as dependências Qt/Python; FFmpeg e ffprobe devem ser instalados separadamente e estar no `PATH`.
 
 ## Licença
 

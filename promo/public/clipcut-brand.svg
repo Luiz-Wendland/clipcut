@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" shape-rendering="geometricPrecision">
+<title>ClipCut — Split Timeline (refined)</title>
+<desc>Geometria vetorial redesenhada com curvas suaves e gradientes para a marca ClipCut.</desc>
+<defs>
+<linearGradient id="top" gradientUnits="userSpaceOnUse" x1="115" y1="70" x2="400" y2="320">
+<stop offset="0" stop-color="#F0E3FF"/>
+<stop offset=".40" stop-color="#D4BFFF"/>
+<stop offset="1" stop-color="#B695F9"/>
+</linearGradient>
+<linearGradient id="bottom" gradientUnits="userSpaceOnUse" x1="165" y1="315" x2="395" y2="480">
+<stop offset="0" stop-color="#E4D2FF"/>
+<stop offset=".42" stop-color="#CBAFFF"/>
+<stop offset="1" stop-color="#AE8AF3"/>
+</linearGradient>
+<linearGradient id="foldTop" gradientUnits="userSpaceOnUse" x1="150" y1="181" x2="212" y2="279">
+<stop offset="0" stop-color="#6B4DAC"/>
+<stop offset="1" stop-color="#8E6CDB"/>
+</linearGradient>
+<linearGradient id="foldBottom" gradientUnits="userSpaceOnUse" x1="181" y1="337" x2="306" y2="440">
+<stop offset="0" stop-color="#7754CA"/>
+<stop offset="1" stop-color="#AD8AEC"/>
+</linearGradient>
+</defs>
+<!-- Upper segment: one continuous, clean contour -->
+<path fill="url(#top)" d="M 148,124
+ C 202,92 270,56 308,43
+ C 346,28 380,37 408,62
+ C 442,93 450,123 438,151
+ C 429,173 409,185 379,201
+ L 321,228
+ C 305,236 292,233 278,227
+ L 209,199
+ C 185,189 169,183 154,187
+ C 128,194 110,210 103,226
+ C 101,235 126,242 149,248
+ C 163,252 171,256 176,272
+ C 181,283 191,299 193,309
+ C 199,324 180,333 154,346
+ C 131,359 107,349 90,332
+ C 67,308 59,282 65,249
+ C 72,191 95,156 148,124 Z"/>
+<!-- Inner shadow is a drawn intentional fold, not a blurred pixel trace -->
+<path fill="url(#foldTop)" d="M 103,225
+ C 114,207 135,190 156,187
+ C 170,182 191,188 209,199
+ L 232,207
+ C 199,218 177,243 176,272
+ C 172,257 163,252 149,248
+ C 126,242 101,235 103,225 Z"/>
+<!-- Lower segment -->
+<path fill="url(#bottom)" d="M 148,364
+ C 187,343 265,307 348,270
+ C 378,256 404,257 426,277
+ C 447,297 455,323 445,352
+ C 437,379 417,391 392,405
+ L 264,463
+ C 226,483 188,481 161,463
+ C 130,442 112,417 122,392
+ C 128,379 135,372 148,364 Z"/>
+<!-- The under-fold is compact at small sizes and preserves the ribbon appearance -->
+<path fill="url(#foldBottom)" d="M 169,354
+ L 222,330
+ C 225,349 243,359 257,378
+ C 268,394 291,403 307,430
+ C 286,440 255,437 230,428
+ C 195,415 167,391 169,354 Z"/>
+</svg>

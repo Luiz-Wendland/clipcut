@@ -13,3 +13,8 @@ deployment/
 dist/
 build/
 *.AppImage
+promo/node_modules/
+promo/.agents/
+promo/output/
+promo/public/fonts/
+promo/public/audio/

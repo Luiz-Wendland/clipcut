@@ -7,6 +7,7 @@ analisar e exportar vídeos. O backend interno de reprodução do Qt é separado
 
 Linux tar.gz: execute ./ClipCut
 Windows zip: execute main.exe
+Windows MSI: install ClipCut, then launch main.exe from the install folder.
 AppImage: torne o arquivo executável e abra-o; FFmpeg e ffprobe continuam
            sendo necessários no PATH.
 

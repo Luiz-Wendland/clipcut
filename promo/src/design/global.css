@@ -1,0 +1,8 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; width: 100%; height: 100%; }
+body { font-family: Inter, sans-serif; background: #111216; }

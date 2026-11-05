@@ -17,5 +17,12 @@ if "multimedia" not in plugins:
 config.set("qt", "plugins", ",".join(plugins))
 config.set("app", "exec_directory", "deployment")
 
+# Nuitka's Windows standalone scan requires this utility. In CI, explicitly
+# allow its verified, cached download instead of failing on an interactive prompt.
+extra_args = config.get("nuitka", "extra_args", fallback="").split()
+if sys.platform == "win32" and "--assume-yes-for-downloads" not in extra_args:
+    extra_args.append("--assume-yes-for-downloads")
+    config.set("nuitka", "extra_args", " ".join(extra_args))
+
 with spec.open("w", encoding="utf-8") as stream:
     config.write(stream)

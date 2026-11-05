@@ -1,0 +1,27 @@
+{
+  "name": "clipcut-promo",
+  "private": true,
+  "scripts": {
+    "prepare:assets": "npm run extract-tokens && node scripts/copy-brand.mjs && python3 scripts/create-soundtrack.py",
+    "prestudio": "npm run prepare:assets",
+    "studio": "remotion studio",
+    "extract-tokens": "python3 scripts/extract-tokens.py",
+    "prerender": "npm run prepare:assets",
+    "render": "remotion render ClipCutPromo output/clipcut-promo-1080p.mp4 --codec h264 --hardware-acceleration required --video-bitrate=12M --audio-codec=aac --audio-bitrate=320k",
+    "prerender:preview": "npm run prepare:assets",
+    "render:preview": "remotion render ClipCutPreview output/clipcut-preview.gif --codec gif --every-nth-frame 2 --overwrite"
+  },
+  "dependencies": {
+    "@remotion/transitions": "4.0.541",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@remotion/cli": "4.0.541",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.9.3"
+  }
+}
