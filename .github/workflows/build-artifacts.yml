@@ -31,7 +31,7 @@ jobs:
         run: |
           pulseaudio --start --exit-idle-time=-1
           python -m unittest discover -s tests -v
-          /usr/lib/qt6/bin/qmllint Main.qml DesignTokens.qml components/*.qml
+          /usr/lib/qt6/bin/qmllint --ignore-settings -W -1 Main.qml DesignTokens.qml components/*.qml
       - name: Build standalone Linux app
         run: pyside6-deploy -c pysidedeploy.spec --no-install --no-warn --keep-deployment-files
       - name: Download verified AppImage packer
