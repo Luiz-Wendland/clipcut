@@ -20,8 +20,6 @@
 
 https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba
 
-Vídeo ilustrativo da interface. [Projeto da promoção](promo/README.md).
-
 ## Download
 
 | Windows | Linux |
