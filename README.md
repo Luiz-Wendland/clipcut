@@ -2,11 +2,11 @@
 
 O ClipCut é um projeto pessoal: um editor de vídeo local pensado para cortar clipes com facilidade e praticidade, sem depender de um fluxo pesado de edição. Ele permite reproduzir, selecionar, enquadrar e exportar trechos; PySide6 e Qt Quick compõem a interface, enquanto FFmpeg e ffprobe cuidam da mídia. Os arquivos permanecem no computador.
 
-## Prévia animada
+## Vídeo promocional
 
-![Prévia animada do ClipCut: seleção de trecho na timeline](assets/promo/clipcut-preview.gif)
-
-🎬 [Assistir ao vídeo promocional completo (MP4, 1080p, 32 s)](assets/promo/clipcut-promo-1080p.mp4)
+<video src="https://github.com/Luiz-Wendland/clipcut/releases/download/v0.1.0/clipcut-promo-1080p.mp4" controls playsinline width="100%">
+  <a href="assets/promo/clipcut-promo-1080p.mp4">Abrir ou baixar o vídeo promocional (MP4, 1080p, 32 s)</a>
+</video>
 
 O vídeo promocional e seu projeto Remotion ficam em [`promo/`](promo/README.md). A interface do vídeo é reconstruída em React/CSS a partir dos componentes e tokens QML reais; a prévia dentro do player é uma ilustração original gerada por código.
 
