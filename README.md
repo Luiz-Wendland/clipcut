@@ -12,6 +12,12 @@
   <a href="https://github.com/Luiz-Wendland/clipcut/issues">Reportar problema</a>
 </p>
 
+<p align="center">
+  <a href="requirements.txt"><img src="https://img.shields.io/badge/Python_%C2%B7_Qt_Quick-b8a4ed" alt="Python e Qt Quick"></a>
+  <a href="https://github.com/Luiz-Wendland/clipcut/releases/latest"><img src="https://img.shields.io/badge/Windows_%C2%B7_Linux-24292f" alt="Windows e Linux"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-b8a4ed" alt="Licença MIT"></a>
+</p>
+
 https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba
 
 Vídeo ilustrativo da interface. [Projeto da promoção](promo/README.md).
