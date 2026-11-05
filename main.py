@@ -105,9 +105,10 @@ class Task(QObject):
 
     def cancel(self):
         self.cancelled.set()
-        if self.process and self.process.poll() is None:
+        process = self.process
+        if process and process.poll() is None:
             try:
-                self.process.terminate()
+                process.terminate()
             except ProcessLookupError:
                 pass
 
@@ -177,6 +178,9 @@ class ExportTask(QObject):
                     has_video = False
                 if check.returncode or not has_video:
                     raise RuntimeError(check.stderr.strip() or "O arquivo exportado não contém vídeo válido")
+                if self.cancelled.is_set():
+                    self.done.emit(False, "Exportação cancelada")
+                    return
                 os.replace(self.temp_path, self.output_path)
                 self.progress.emit(100)
                 self.done.emit(True, "Exportação concluída")
@@ -1164,6 +1168,9 @@ class ClipBackend(QObject):
     def exportFile(self, output: str, codec: str, ratio: str, custom_ratio: str,
                    quality: str, use_gpu: bool, overwrite: bool = False,
                    target_size_mb: float = 0.0, include_audio: bool = True):
+        if self._shutting_down or self._exporting or self._queue_running:
+            self.exportDone.emit(False, "Aguarde a exportação atual terminar.")
+            return
         job, error = self._prepare_export_job(output, codec, ratio, custom_ratio, quality,
                                               use_gpu, overwrite, target_size_mb, include_audio)
         if error:

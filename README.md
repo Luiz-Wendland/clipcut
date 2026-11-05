@@ -53,6 +53,8 @@ Os pacotes são para **x86_64** e incluem Qt/Python. **Instale FFmpeg e ffprobe 
 
 [Todas as versões e notas de lançamento](https://github.com/Luiz-Wendland/clipcut/releases).
 
+Esta é uma versão inicial. O CI verifica testes e geração dos pacotes, mas não substitui testes de instalação em cada sistema. Os pacotes Windows não são assinados digitalmente e podem gerar avisos de segurança. A compatibilidade de codecs e aceleração por GPU depende da instalação local.
+
 ## Interface
 
 O tema padrão combina superfícies escuras, detalhes lavanda e controles compactos. Em **Preferências → Aparência**, é possível alternar entre o tema do ClipCut e as cores do KDE Plasma quando disponíveis; também há uma opção para reduzir animações.
@@ -86,7 +88,7 @@ Durante a renderização, o editor fica desfocado e bloqueado; o cartão central
 - H.264, HEVC, AV1 e cópia do vídeo usam encoders disponíveis no FFmpeg. Valores de qualidade são específicos de cada encoder.
 - A escolha entre CPU e GPU é explícita no painel de exportação. A disponibilidade de NVENC, AMD AMF, Intel Quick Sync ou VA-API depende da GPU, do driver e dos encoders do FFmpeg. Se o encoder GPU selecionado falhar ao iniciar, a exportação informa o erro em vez de trocar silenciosamente para CPU. Algumas GPUs não codificam certos codecs por hardware: por exemplo, a RTX 3060 Ti não oferece codificação AV1; nesse caso, AV1 usa CPU e a opção GPU fica indisponível.
 - **Preferências → Diagnóstico de exportação** mostra as versões e os encoders detectados e permite copiar um relatório. Ele não inclui caminhos de mídia; confira o modelo da GPU antes de compartilhar.
-- O áudio selecionado é codificado em AAC estéreo a 192 kb/s; pode ser excluído no painel de exportação.
+- As faixas de áudio são codificadas em AAC a 192 kb/s por faixa; podem ser excluídas no painel de exportação.
 - Enquadrar exige recodificação e não funciona com vídeo sem recodificação. Tamanho-alvo usa bitrate estimado de uma passagem e não promete tamanho exato.
 - A posição do player usa milissegundos. Botões de quadro usam o FPS médio e não garantem avanço exato em vídeos com taxa variável.
 - Vídeo sem recodificação pode ajustar os pontos de corte a quadros-chave; recodificar é a opção mais precisa.

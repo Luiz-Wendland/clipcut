@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtCore import QCoreApplication, QUrl
 from PySide6.QtGui import QImageReader
 
-from main import ClipBackend, ratio_value
+from main import ClipBackend, ExportTask, ratio_value
 
 
 APP = QCoreApplication.instance() or QCoreApplication([])
@@ -300,6 +300,49 @@ ForegroundNormal=#e2e4fc
         self.backend.exportFile(self.backend._path, "h264", "Original", "3:2",
                                 "Alta qualidade", False)
         self.assertIn("original", errors[-1])
+
+    def test_second_export_does_not_replace_active_worker(self):
+        worker = object()
+        self.backend._export_task = worker
+        self.backend._set_exporting(True)
+        results = []
+        self.backend.exportDone.connect(lambda success, message: results.append((success, message)))
+        try:
+            with patch.object(self.backend, "_launch_export_job") as launch:
+                self.backend.exportFile("another.mp4", "h264", "Original", "3:2",
+                                        "Alta qualidade", False)
+                launch.assert_not_called()
+            self.assertIs(self.backend._export_task, worker)
+            self.assertFalse(results[-1][0])
+            self.assertIn("Aguarde", results[-1][1])
+        finally:
+            self.backend._export_task = None
+            self.backend._set_exporting(False)
+
+    def test_cancel_during_validation_preserves_destination(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "existing.mp4"
+            temporary = Path(directory) / "export.partial.mp4"
+            destination.write_bytes(b"original destination")
+            temporary.write_bytes(b"new export")
+            task = ExportTask(["ffmpeg", str(temporary)], 1, str(temporary), str(destination))
+            results = []
+            task.done.connect(lambda success, message: results.append((success, message)))
+
+            def validate(*args, **kwargs):
+                task.cancel()
+                return subprocess.CompletedProcess(args, 0,
+                    '{"streams": [{"codec_type": "video", "nb_read_packets": "1"}]}', "")
+
+            with patch("main.subprocess.Popen") as popen, patch("main.capture", side_effect=validate), \
+                    patch("main.QThread.currentThread"):
+                popen.return_value.stdout.__enter__.return_value = []
+                popen.return_value.wait.return_value = 0
+                task.run()
+
+            self.assertEqual(results, [(False, "Exportação cancelada")])
+            self.assertEqual(destination.read_bytes(), b"original destination")
+            self.assertFalse(temporary.exists())
 
     def test_failed_confirmed_overwrite_preserves_existing_file(self):
         with tempfile.TemporaryDirectory() as directory:
