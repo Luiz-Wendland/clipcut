@@ -25,12 +25,10 @@ jobs:
           set -euo pipefail
           # The Azure mirror baked into the runner image drops every package
           # fetch, so the install stalls forever. Use the canonical mirror.
-          for sources in /etc/apt/sources.list /etc/apt/sources.list.d/*.list \
-                         /etc/apt/sources.list.d/*.sources; do
-            [ -f "$sources" ] || continue
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$sources"
-          done
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo grep -rl "azure.archive.ubuntu.com" /etc/apt 2>/dev/null | \
+            xargs -r sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g'
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+                       -o Acquire::http::Pipeline-Depth=0 update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             ffmpeg libegl1 libpulse0 pulseaudio
       - name: Install Python build dependencies
