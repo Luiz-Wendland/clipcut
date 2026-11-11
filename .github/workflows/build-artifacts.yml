@@ -15,8 +15,8 @@ jobs:
     # used to hang the apt step for the whole job.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install system dependencies
@@ -48,7 +48,7 @@ jobs:
         env:
           APPIMAGETOOL: /tmp/appimagetool
         run: packaging/package-linux.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: clipcut-linux-x86_64
           path: dist/*
@@ -57,8 +57,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: ilammy/msvc-dev-cmd@v1
@@ -75,7 +75,7 @@ jobs:
       - name: Package Windows ZIP and MSI
         shell: pwsh
         run: packaging/package-windows.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: clipcut-windows-x86_64
           path: |
