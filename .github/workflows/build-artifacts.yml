@@ -11,16 +11,22 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-22.04
+    # Ubuntu 22.04 runners are being retired and their mirrors stall, which
+    # used to hang the apt step for the whole job.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install system dependencies
+        timeout-minutes: 15
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libegl1 libpulse0 pulseaudio
+          set -e
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+                       -o Acquire::https::Timeout=30 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            ffmpeg libegl1 libpulse0 pulseaudio
       - name: Install Python build dependencies
         run: |
           python -m pip install -r requirements-build.txt patchelf==0.19.3.0
@@ -29,7 +35,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
         run: |
-          pulseaudio --start --exit-idle-time=-1
+          pulseaudio --start --exit-idle-time=-1 || true
           python -m unittest discover -s tests -v
       - name: Build standalone Linux app
         run: pyside6-deploy -c pysidedeploy.spec --no-install --no-warn --keep-deployment-files
