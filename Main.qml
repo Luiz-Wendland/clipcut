@@ -558,13 +558,13 @@ Window {
 
                     // Four quiet masks leave the actual crop boundary unobscured.
                     Rectangle {
-                        visible: root.showCropOverlay && backend.cropRect.width < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.width < 0.9999
                         x: videoOutput.contentRect.x; y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * backend.cropRect.x; height: videoOutput.contentRect.height
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: root.showCropOverlay && backend.cropRect.width < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.width < 0.9999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * (backend.cropRect.x + backend.cropRect.width)
                         y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * (1 - backend.cropRect.x - backend.cropRect.width)
@@ -572,7 +572,7 @@ Window {
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: root.showCropOverlay && backend.cropRect.height < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.height < 0.9999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * backend.cropRect.x
                         y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * backend.cropRect.width
@@ -580,7 +580,7 @@ Window {
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: root.showCropOverlay && backend.cropRect.height < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.height < 0.9999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * backend.cropRect.x
                         y: videoOutput.contentRect.y + videoOutput.contentRect.height * (backend.cropRect.y + backend.cropRect.height)
                         width: videoOutput.contentRect.width * backend.cropRect.width
