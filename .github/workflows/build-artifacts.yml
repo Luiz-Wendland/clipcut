@@ -57,8 +57,6 @@ jobs:
           fi
           echo "${libdir}:${libdir}/pulseaudio" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=${libdir}:${libdir}/pulseaudio:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          plugin=$(python -c "import os, PySide6; print(os.path.join(os.path.dirname(PySide6.__file__), 'Qt/qml/QtMultimedia'))")
-          ldd "${plugin}"/*.so 2>/dev/null | grep "not found" | sort -u || true
       - name: Ensure FFmpeg is available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
@@ -73,6 +71,16 @@ jobs:
       - name: Install Python build dependencies
         run: |
           python -m pip install -r requirements-build.txt patchelf==0.19.3.0
+      - name: Report unresolved libraries
+        run: |
+          plugin=$(python -c "import os, PySide6; print(os.path.join(os.path.dirname(PySide6.__file__), 'Qt/qml/QtMultimedia'))")
+          missing=$(ldd "${plugin}"/*.so 2>/dev/null | grep "not found" | sort -u || true)
+          if [ -n "$missing" ]; then
+            echo "::warning::unresolved libraries:"
+            echo "$missing"
+          else
+            echo "all QtMultimedia libraries resolved"
+          fi
       - name: Test source app
         env:
           QT_QPA_PLATFORM: offscreen
