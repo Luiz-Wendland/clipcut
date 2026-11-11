@@ -19,61 +19,42 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Install system dependencies
-        timeout-minutes: 12
-        continue-on-error: true
+      - name: Provide system libraries for the headless tests
         run: |
           set -uo pipefail
-          # The runner cannot resolve the *.ubuntu.com hosts, so the archive
-          # index never arrives and apt never gets past the first fetch.
-          # Walk a list of mirrors until one of them answers.
-          sources=/etc/apt/sources.list.d/ubuntu.sources
-          [ -f "$sources" ] || sources=/etc/apt/sources.list
-          for mirror in \
-            "https://mirrors.kernel.org/ubuntu/" \
-            "https://mirror.arizona.edu/ubuntu/" \
-            "https://ftp.osuosl.org/pub/ubuntu/" \
-            "https://mirror.leaseweb.com/ubuntu/" \
-            "https://archive.ubuntu.com/ubuntu/" ; do
-            if grep -q "^URIs:" "$sources"; then
-              sudo sed -i -E "s|^URIs: .*|URIs: $mirror|" "$sources"
-            else
-              sudo sed -i -E "s|^(deb .*)https?://[^ ]+|\\1$mirror|" "$sources"
-            fi
-            echo "Trying $mirror"
-            if sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 \
-                             -o Acquire::https::Timeout=15 update; then
-              echo "Using $mirror"
-              break
-            fi
-          done
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            ffmpeg libegl1 libpulse0 pulseaudio
-      - name: Provide libEGL without apt
-        run: |
-          set -uo pipefail
+          # The hosted runner cannot reach the Ubuntu package archives, so the
+          # GLVND libraries PySide6 links against are pulled straight from a
+          # mirror and unpacked by hand.
+          libdir=/tmp/syslibs/usr/lib/x86_64-linux-gnu
           if ldconfig -p | grep -q libEGL.so.1; then
             echo "libEGL is already present"
             exit 0
           fi
-          # Fallback for the case where apt could not install anything: pull
-          # the GLVND packages straight from a mirror and unpack them.
-          mkdir -p /tmp/egllibs
-          for mirror in "https://mirrors.kernel.org/ubuntu/" \
+          mkdir -p /tmp/syslibs /tmp/debs
+          for mirror in "https://mirrors.edge.kernel.org/ubuntu/" \
+                        "https://mirrors.kernel.org/ubuntu/" \
                         "https://mirror.arizona.edu/ubuntu/"; do
-            index=$(mktemp)
-            curl -fsSL "${mirror}dists/noble/main/binary-amd64/Packages.gz" | gzip -dc > "$index" || continue
-            for pkg in libglvnd0 libegl1; do
+            index=/tmp/debs/Packages
+            curl -fsSL --retry 3 --connect-timeout 15 \
+                 "${mirror}dists/noble/main/binary-amd64/Packages.gz" \
+                 | gzip -dc > "$index" || continue
+            for pkg in libglvnd0 libegl1 libglx0 libpulse0 libsndfile1 \
+                       libasound2t64 libasyncns1 libtirpc3 libwrap0; do
               path=$(awk -v p="$pkg" '$0 == "Package: " p {f=1} f && /^Filename: / {print $2; exit}' "$index")
               [ -n "$path" ] || continue
-              curl -fsSL "${mirror}${path}" -o "/tmp/${pkg}.deb" || continue
-              sudo dpkg-deb -x "/tmp/${pkg}.deb" /tmp/egllibs
+              curl -fsSL --retry 3 --connect-timeout 15 "${mirror}${path}" \
+                   -o "/tmp/debs/${pkg}.deb" || continue
+              sudo dpkg-deb -x "/tmp/debs/${pkg}.deb" /tmp/syslibs
             done
-            [ -f /tmp/egllibs/usr/lib/x86_64-linux-gnu/libEGL.so.1 ] && break
+            [ -e "${libdir}/libEGL.so.1" ] && break
           done
-          echo "/tmp/egllibs/usr/lib/x86_64-linux-gnu" >> "$GITHUB_PATH"
-          echo "LD_LIBRARY_PATH=/tmp/egllibs/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
-          ldconfig -p | grep -q libEGL.so.1 && echo "libEGL ready"
+          if [ ! -e "${libdir}/libEGL.so.1" ]; then
+            echo "::error::libEGL.so.1 could not be provided"
+            exit 1
+          fi
+          echo "${libdir}" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+          ls -l "${libdir}" | grep -E "libEGL|libGLdispatch" || true
       - name: Ensure FFmpeg is available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
