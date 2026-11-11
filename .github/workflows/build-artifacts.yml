@@ -42,7 +42,9 @@ jobs:
                    | gzip -dc >> "$index" || true
             done
             for pkg in libglvnd0 libegl1 libglx0 libpulse0 libsndfile1 \
-                       libasound2t64 libasyncns0 libtirpc3t64 libwrap0; do
+                       libasound2t64 libasyncns0 libtirpc3t64 libwrap0 \
+                       libflac12t64 libmp3lame0 libmpg123-0t64 libopus0 \
+                       libvorbis0a libvorbisenc2 libogg0; do
               path=$(awk -v p="$pkg" '$0 == "Package: " p {f=1} f && /^Filename: / {print $2; exit}' "$index")
               [ -n "$path" ] || continue
               curl -fsSL --retry 3 --connect-timeout 15 "${mirror}${path}" \
@@ -64,6 +66,7 @@ jobs:
             mkdir -p /tmp/ffmpeg-static
             curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
               | tar -xJ -C /tmp/ffmpeg-static --strip-components=1
+            export PATH="/tmp/ffmpeg-static/bin:$PATH"
             echo "/tmp/ffmpeg-static/bin" >> "$GITHUB_PATH"
           fi
           ffmpeg -version | head -1
