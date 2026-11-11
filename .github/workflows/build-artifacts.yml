@@ -23,21 +23,57 @@ jobs:
         timeout-minutes: 12
         continue-on-error: true
         run: |
-          set -euo pipefail
-          # The runner image resolves apt through a mirror list whose first
-          # entry is azure.archive.ubuntu.com over plain HTTP. Every fetch from
-          # it is dropped and the retry on the same URI keeps the install from
-          # failing over. Point apt straight at the canonical mirror.
-          sudo grep -rl "mirror+file:/etc/apt/apt-mirrors.txt" /etc/apt 2>/dev/null | \
-            xargs -r sudo sed -i \
-              's|mirror+file:/etc/apt/apt-mirrors.txt|https://archive.ubuntu.com/ubuntu/|g'
-          sudo grep -rlE "azure\.archive\.ubuntu\.com" /etc/apt 2>/dev/null | \
-            xargs -r sudo sed -i -E \
-              's|https?://azure\.archive\.ubuntu\.com[^[:space:]]*|https://archive.ubuntu.com/ubuntu/|g'
-          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=15 \
-                       -o Acquire::https::Timeout=15 update
+          set -uo pipefail
+          # The runner cannot resolve the *.ubuntu.com hosts, so the archive
+          # index never arrives and apt never gets past the first fetch.
+          # Walk a list of mirrors until one of them answers.
+          sources=/etc/apt/sources.list.d/ubuntu.sources
+          [ -f "$sources" ] || sources=/etc/apt/sources.list
+          for mirror in \
+            "https://mirrors.kernel.org/ubuntu/" \
+            "https://mirror.arizona.edu/ubuntu/" \
+            "https://ftp.osuosl.org/pub/ubuntu/" \
+            "https://mirror.leaseweb.com/ubuntu/" \
+            "https://archive.ubuntu.com/ubuntu/" ; do
+            if grep -q "^URIs:" "$sources"; then
+              sudo sed -i -E "s|^URIs: .*|URIs: $mirror|" "$sources"
+            else
+              sudo sed -i -E "s|^(deb .*)https?://[^ ]+|\\1$mirror|" "$sources"
+            fi
+            echo "Trying $mirror"
+            if sudo apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=15 \
+                             -o Acquire::https::Timeout=15 update; then
+              echo "Using $mirror"
+              break
+            fi
+          done
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             ffmpeg libegl1 libpulse0 pulseaudio
+      - name: Provide libEGL without apt
+        run: |
+          set -uo pipefail
+          if ldconfig -p | grep -q libEGL.so.1; then
+            echo "libEGL is already present"
+            exit 0
+          fi
+          # Fallback for the case where apt could not install anything: pull
+          # the GLVND packages straight from a mirror and unpack them.
+          mkdir -p /tmp/egllibs
+          for mirror in "https://mirrors.kernel.org/ubuntu/" \
+                        "https://mirror.arizona.edu/ubuntu/"; do
+            index=$(mktemp)
+            curl -fsSL "${mirror}dists/noble/main/binary-amd64/Packages.gz" | gzip -dc > "$index" || continue
+            for pkg in libglvnd0 libegl1; do
+              path=$(awk -v p="$pkg" '$0 == "Package: " p {f=1} f && /^Filename: / {print $2; exit}' "$index")
+              [ -n "$path" ] || continue
+              curl -fsSL "${mirror}${path}" -o "/tmp/${pkg}.deb" || continue
+              sudo dpkg-deb -x "/tmp/${pkg}.deb" /tmp/egllibs
+            done
+            [ -f /tmp/egllibs/usr/lib/x86_64-linux-gnu/libEGL.so.1 ] && break
+          done
+          echo "/tmp/egllibs/usr/lib/x86_64-linux-gnu" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=/tmp/egllibs/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
+          ldconfig -p | grep -q libEGL.so.1 && echo "libEGL ready"
       - name: Ensure FFmpeg is available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
