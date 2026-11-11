@@ -35,11 +35,14 @@ jobs:
                         "https://mirrors.kernel.org/ubuntu/" \
                         "https://mirror.arizona.edu/ubuntu/"; do
             index=/tmp/debs/Packages
-            curl -fsSL --retry 3 --connect-timeout 15 \
-                 "${mirror}dists/noble/main/binary-amd64/Packages.gz" \
-                 | gzip -dc > "$index" || continue
+            : > "$index"
+            for component in main universe; do
+              curl -fsSL --retry 3 --connect-timeout 15 \
+                   "${mirror}dists/noble/${component}/binary-amd64/Packages.gz" \
+                   | gzip -dc >> "$index" || true
+            done
             for pkg in libglvnd0 libegl1 libglx0 libpulse0 libsndfile1 \
-                       libasound2t64 libasyncns1 libtirpc3 libwrap0; do
+                       libasound2t64 libasyncns0 libtirpc3t64 libwrap0; do
               path=$(awk -v p="$pkg" '$0 == "Package: " p {f=1} f && /^Filename: / {print $2; exit}' "$index")
               [ -n "$path" ] || continue
               curl -fsSL --retry 3 --connect-timeout 15 "${mirror}${path}" \
@@ -54,8 +57,8 @@ jobs:
           fi
           echo "${libdir}:${libdir}/pulseaudio" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=${libdir}:${libdir}/pulseaudio:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          ls -l "${libdir}" | grep -E "libEGL|libGLdispatch" || true
-          ls -l "${libdir}/pulseaudio" 2>/dev/null | head -5 || true
+          plugin=$(python -c "import os, PySide6; print(os.path.join(os.path.dirname(PySide6.__file__), 'Qt/qml/QtMultimedia'))")
+          ldd "${plugin}"/*.so 2>/dev/null | grep "not found" | sort -u || true
       - name: Ensure FFmpeg is available
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
