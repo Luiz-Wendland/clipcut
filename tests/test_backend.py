@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtCore import QCoreApplication, QUrl
 from PySide6.QtGui import QImageReader
 
-from main import ClipBackend, ExportTask, ratio_value
+from main import ClipBackend, ExportTask, parse_ratio
 
 
 APP = QCoreApplication.instance() or QCoreApplication([])
@@ -107,16 +107,137 @@ class BackendTests(unittest.TestCase):
                       command[command.index("-vf") + 1])
 
     def test_ratio_validation(self):
-        self.assertAlmostEqual(ratio_value("Original", 1920, 1080), 16 / 9)
-        self.assertAlmostEqual(ratio_value("4:3", 1920, 1080), 4 / 3)
-        self.assertAlmostEqual(ratio_value("9:16", 1920, 1080), 9 / 16)
-        self.assertAlmostEqual(ratio_value("1:1", 1920, 1080), 1)
-        self.assertAlmostEqual(ratio_value("4:5", 1920, 1080), 4 / 5)
-        self.assertIsNone(ratio_value("bad", 1920, 1080))
+        # "Original" follows the source, the presets are fixed and "Livre"
+        # only accepts the custom field.
+        self.assertAlmostEqual(self.backend._target_dar("Original", "3:2"), 16 / 9)
+        self.assertAlmostEqual(self.backend._target_dar("4:3", "3:2"), 4 / 3)
+        self.assertAlmostEqual(self.backend._target_dar("9:16", "3:2"), 9 / 16)
+        self.assertAlmostEqual(self.backend._target_dar("1:1", "3:2"), 1)
+        self.assertAlmostEqual(self.backend._target_dar("4:5", "3:2"), 4 / 5)
+        self.assertAlmostEqual(self.backend._target_dar("Livre", "3:2"), 3 / 2)
+        self.assertIsNone(self.backend._target_dar("bad", "3:2"))
+        self.assertIsNone(self.backend._target_dar("Livre", "bad"))
+
+    def test_parse_ratio_accepts_only_bounded_integers(self):
+        self.assertEqual(parse_ratio("16:9"), (16, 9))
+        self.assertEqual(parse_ratio("21:9"), (21, 9))
+        self.assertIsNone(parse_ratio("0:1"))
+        self.assertIsNone(parse_ratio("1:0"))
+        self.assertIsNone(parse_ratio("1.5:2"))
+        self.assertIsNone(parse_ratio("inf:2"))
+        self.assertIsNone(parse_ratio("nan:1"))
+        self.assertIsNone(parse_ratio("1000000:1"))
+        self.assertIsNone(parse_ratio("x:y"))
+        self.assertIsNone(parse_ratio("16"))
+
+    def test_every_preset_lands_on_the_requested_aspect(self):
+        presets = {"4:3": 4 / 3, "16:9": 16 / 9, "21:9": 21 / 9,
+                   "9:16": 9 / 16, "1:1": 1.0, "4:5": 4 / 5}
+        for ratio, target in presets.items():
+            with self.subTest(ratio=ratio):
+                self.backend.setCropRatio(ratio, "3:2")
+                command, _ = self.backend._command("out.mp4", "h264", ratio, "3:2",
+                                                    "Alta qualidade", False)
+                if "-vf" in command:
+                    filter_value = command[command.index("-vf") + 1]
+                    width, height = (int(v) for v in filter_value[len("crop="):].split(":")[:2])
+                else:
+                    # The source already matches the preset: nothing is cropped.
+                    width, height = self.backend.videoWidth, self.backend.videoHeight
+                self.assertLess(abs((width / height) / target - 1), 0.002,
+                                 f"{ratio} exported as {width}x{height}")
+                self.assertEqual(width % 2, 0)
+                self.assertEqual(height % 2, 0)
+
+    def test_custom_ratio_preview_matches_the_export(self):
+        for custom in ("3:2", "5:4", "21:9"):
+            with self.subTest(custom=custom):
+                self.backend.setCropRatio("Livre", custom)
+                command, _ = self.backend._command("out.mp4", "h264", "Livre", custom,
+                                                    "Alta qualidade", False)
+                filter_value = command[command.index("-vf") + 1]
+                width, height = (int(v) for v in filter_value[len("crop="):].split(":")[:2])
+                target_w, target_h = (int(v) for v in custom.split(":"))
+                self.assertLess(abs((width / height) / (target_w / target_h) - 1), 0.002)
+
+    def test_invalid_custom_ratio_never_reshapes_the_frame(self):
+        self.backend.setCropRatio("Livre", "abc")
+        self.assertEqual(self.backend.cropRect["width"], 1.0)
+        self.assertEqual(self.backend.cropRect["height"], 1.0)
+        with self.assertRaisesRegex(ValueError, "Proporção livre inválida"):
+            self.backend._command("out.mp4", "h264", "Livre", "abc",
+                                  "Alta qualidade", False)
+
+    def test_near_by_source_aspect_is_still_cropped_to_the_preset(self):
+        # 1000x563 is 0.09% away from 16:9: the preset must still be honoured.
+        self.backend._width, self.backend._height = 1000, 563
+        self.backend.setCropRatio("16:9", "3:2")
+        command, _ = self.backend._command("out.mp4", "h264", "16:9", "3:2",
+                                            "Alta qualidade", False)
+        width, height = (int(v) for v in command[command.index("-vf") + 1]
+                         [len("crop="):].split(":")[:2])
+        self.assertEqual((width, height), (1000, 562))
+
+    def test_anamorphic_source_keeps_its_display_aspect(self):
+        # 720x576 with SAR 16:15 displays as 4:3.
+        self.backend._width, self.backend._height = 720, 576
+        self.backend._sample_aspect = 16 / 15
+        self.backend.setCropRatio("1:1", "3:2")
+        command, _ = self.backend._command("out.mp4", "h264", "1:1", "3:2",
+                                            "Alta qualidade", False)
+        width, height = (int(v) for v in command[command.index("-vf") + 1]
+                         [len("crop="):].split(":")[:2])
+        # 540x576 pixels with the 16:15 sample aspect displays as 1:1.
+        self.assertAlmostEqual((width * (16 / 15)) / height, 1.0, places=3)
+
+    def test_zero_sample_aspect_is_ignored(self):
+        self.backend._sample_aspect = 0.0
+        self.backend.setCropRatio("1:1", "3:2")
+        width, height, _, _ = self.backend._crop_pixels(self.backend.cropRect)
+        self.assertEqual((width, height), (1080, 1080))
+
+    def test_rotated_source_is_cropped_on_the_displayed_frame(self):
+        # A phone video stores 1080x1920 plus a 90 degree display matrix: the
+        # crop has to be measured on the rotated frame FFmpeg hands to the filter.
+        self.backend._width, self.backend._height = 1080, 1920
+        self.backend.setCropRatio("21:9", "3:2")
+        command, _ = self.backend._command("out.mp4", "h264", "21:9", "3:2",
+                                            "Alta qualidade", False)
+        width, height = (int(v) for v in command[command.index("-vf") + 1]
+                         [len("crop="):].split(":")[:2])
+        self.assertEqual(width, 1080)
+        self.assertLess(abs((width / height) / (21 / 9) - 1), 0.002)
+
+    def test_crop_size_matches_the_export_filter(self):
+        self.backend.setCropRatio("9:16", "3:2")
+        size = self.backend.cropSize
+        command, _ = self.backend._command("out.mp4", "h264", "9:16", "3:2",
+                                            "Alta qualidade", False)
+        width, height = (int(v) for v in command[command.index("-vf") + 1]
+                         [len("crop="):].split(":")[:2])
+        self.assertEqual((size["width"], size["height"]), (width, height))
+        self.assertTrue(size["cropped"])
+        self.assertTrue(self.backend.cropActive)
+
+    def test_crop_centre_survives_a_ratio_change(self):
+        self.backend.setCropRatio("21:9", "3:2")
+        self.backend.moveCrop(0.3, 0.5)
+        centre = self.backend.cropRect["x"] + self.backend.cropRect["width"] / 2
+        self.backend.setCropRatio("9:16", "3:2")
+        moved = self.backend.cropRect
+        self.assertAlmostEqual(moved["x"] + moved["width"] / 2, centre, places=6)
+
+    def test_move_crop_ignores_non_finite_values(self):
+        self.backend.setCropRatio("9:16", "3:2")
+        before = dict(self.backend.cropRect)
+        self.backend.moveCrop(float("nan"), float("inf"))
+        self.assertEqual(self.backend.cropRect, before)
 
     def test_social_crop_presets_generate_centered_even_dimensions(self):
+        # Dimensions round to the nearest even value, keeping the exported
+        # aspect within 0.1% of the requested one.
         expected = {
-            "9:16": "crop=606:1080:656:0",
+            "9:16": "crop=608:1080:656:0",
             "1:1": "crop=1080:1080:420:0",
             "4:5": "crop=864:1080:528:0",
         }

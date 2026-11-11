@@ -16,6 +16,7 @@ import threading
 import time
 import uuid
 import configparser
+import atexit
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Property, QSettings, QThread, QTimer, QUrl, Signal, Slot
@@ -29,22 +30,51 @@ QUALITY = {
     "Compacto": {"h264": 23, "hevc": 26, "av1": 36, "nvenc": 25},
 }
 
+# Backends register themselves so the worker threads are always stopped,
+# even when the interpreter exits while analysis is still running.
+_LIVE_BACKENDS = []
+
+
+def _shutdown_backends():
+    for backend in list(_LIVE_BACKENDS):
+        try:
+            backend.shutdown()
+        except Exception:
+            pass
+    _LIVE_BACKENDS.clear()
+
+
+atexit.register(_shutdown_backends)
+
 
 def capture(args: list[str], timeout=30):
     return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           text=True, timeout=timeout, check=False)
 
 
-def ratio_value(text: str, width: int, height: int):
-    if text == "Original":
-        return width / max(1, height)
-    if text == "Livre":
+# Upper bound for a single side of a custom ratio. It keeps extreme values
+# ("1000000:1") from collapsing the crop to a 2px band.
+RATIO_PART_LIMIT = 9999
+
+
+def parse_ratio(text):
+    """Interpret a "w:h" ratio. Returns an (w, h) int pair or None when invalid.
+
+    Single source of truth for the preview and the export so both agree on
+    what a ratio means; the QML field uses the same integer-only grammar.
+    """
+    if not isinstance(text, str):
+        return None
+    parts = text.split(":", 1)
+    if len(parts) != 2:
         return None
     try:
-        w, h = (int(v) for v in text.split(":", 1))
-        return w / h if w > 0 and h > 0 else None
+        w, h = (int(part) for part in parts)
     except (ValueError, TypeError):
         return None
+    if not (1 <= w <= RATIO_PART_LIMIT and 1 <= h <= RATIO_PART_LIMIT):
+        return None
+    return w, h
 
 
 class Task(QObject):
@@ -276,6 +306,7 @@ class ClipBackend(QObject):
         self._crop_x = self._crop_y = 0.5
         self._encoders = self._detect_encoders()
         self._gpu_name = self._preferred_gpu_name()
+        _LIVE_BACKENDS.append(self)
 
     @staticmethod
     def _detect_gpu_devices(drm_root="/sys/class/drm", dev_root="/dev/dri"):
@@ -573,6 +604,28 @@ class ClipBackend(QObject):
     def cropRect(self):
         return self._crop_geometry()
 
+    @Property(bool, notify=rangeChanged)
+    def cropActive(self):
+        """True when the framing actually trims the frame."""
+        if not self._width or not self._height:
+            return False
+        rect = self._crop_geometry()
+        return rect["width"] < .9999 or rect["height"] < .9999
+
+    @Property("QVariantMap", notify=rangeChanged)
+    def cropSize(self):
+        """Pixel size of the framed output when re-encoding.
+
+        Exposed as a property so the QML bindings refresh whenever the
+        framing changes; stream copy keeps the source size instead.
+        """
+        if not self._width or not self._height:
+            return {"width": 0, "height": 0, "cropped": False}
+        rect = self._crop_geometry()
+        width, height, _, _ = self._crop_pixels(rect)
+        return {"width": width, "height": height,
+                "cropped": width < self._width or height < self._height}
+
     @Property(bool, notify=mediaChanged)
     def hasVideo(self):
         return bool(self._path and self._duration > 0)
@@ -730,6 +783,10 @@ class ClipBackend(QObject):
         self._sample_aspect = 1.0
         self._audio = False
         self._start = self._end = self._position = 0.0
+        # A framing chosen for the previous file must not leak into this one.
+        self._crop_ratio = "Original"
+        self._crop_custom = ""
+        self._crop_x = self._crop_y = 0.5
         self._set_busy(True)
         self.fileChanged.emit()
         self.mediaChanged.emit()
@@ -760,11 +817,27 @@ class ClipBackend(QObject):
             sar_text = video.get("sample_aspect_ratio", "1:1") or "1:1"
             try:
                 sar_w, sar_h = (float(v) for v in sar_text.split(":", 1))
-                sample_aspect = sar_w / sar_h if sar_h else 1.0
+                sample_aspect = sar_w / sar_h if sar_w > 0 and sar_h > 0 else 1.0
             except (ValueError, ZeroDivisionError):
                 sample_aspect = 1.0
-            return {"duration": duration, "width": int(video.get("width", 0)),
-                    "height": int(video.get("height", 0)), "codec": video.get("codec_name", ""),
+            width = int(video.get("width", 0))
+            height = int(video.get("height", 0))
+            rotation = 0
+            for side in video.get("side_data_list") or []:
+                if side.get("side_data_type") == "Display Matrix" and "rotation" in side:
+                    try:
+                        rotation = int(round(float(side["rotation"]))) % 360
+                    except (TypeError, ValueError):
+                        rotation = 0
+                    break
+            if rotation in (90, 270):
+                # FFmpeg applies the display matrix before our filters, so the crop
+                # must be measured on the rotated frame, exactly as the preview shows it.
+                # The transpose also inverts the sample aspect ratio.
+                width, height = height, width
+                sample_aspect = 1.0 / sample_aspect
+            return {"duration": duration, "width": width, "height": height,
+                    "codec": video.get("codec_name", ""), "rotation": rotation,
                     "fps": fps, "audio": audio, "sample_aspect": sample_aspect}
 
         self._run_task(probe, self._probe_done, generation, "probe")
@@ -775,16 +848,26 @@ class ClipBackend(QObject):
                 task.cancel()
 
     def _run_task(self, fn, callback, generation, kind="analysis"):
-        thread = QThread(self)
+        # The thread is owned by Python and released once it finishes: a pending
+        # deleteLater would outlive the backend and destroy it twice.
+        thread = QThread()
         task = Task(fn, generation, kind)
         task.moveToThread(thread)
         thread.started.connect(task.run)
         task.done.connect(callback)
-        thread.finished.connect(task.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(lambda t=thread: self._tasks.pop(t, None))
+        thread.finished.connect(self._task_finished)
         self._tasks[thread] = task
         thread.start()
+
+    @Slot()
+    def _task_finished(self):
+        thread = self.sender()
+        if isinstance(thread, QThread):
+            try:
+                thread.finished.disconnect(self._task_finished)
+            except (RuntimeError, TypeError):
+                pass
+            self._tasks.pop(thread, None)
 
     @Slot(object, str, int)
     def _probe_done(self, data, error, generation):
@@ -815,12 +898,15 @@ class ClipBackend(QObject):
         path, duration, has_audio = self._path, self._duration, self._audio
 
         def make_thumbnails(task):
-            # Individual 16:9 thumbnails preserve aspect ratio at every zoom
-            # level. 48 evenly sampled frames provide useful detail without
-            # building a project/cache database.
+            # Thumbnails keep the source shape: the frame is fitted and padded,
+            # never cropped, so a portrait video still shows its whole image.
+            # 48 evenly sampled frames provide useful detail without building a
+            # project/cache database.
             pattern = os.path.join(self._tmp.name, f"timeline-{generation}-%02d.jpg")
             rate = 48 / max(duration, .1)
-            vf = f"fps={rate:.8f},scale=160:90:force_original_aspect_ratio=increase,crop=160:90"
+            thumb_w, thumb_h = self._fit_box(self._source_dar(), 160, 90)
+            vf = (f"fps={rate:.8f},scale={thumb_w}:{thumb_h},"
+                  f"pad=160:90:(ow-iw)/2:(oh-ih)/2:color=black")
             args = ["ffmpeg", "-hide_banner", "-v", "error", "-y", "-i", path, "-vf", vf,
                     "-frames:v", "48", "-q:v", "4", pattern]
             p = task.run_process(args, timeout=120)
@@ -895,8 +981,10 @@ class ClipBackend(QObject):
         preview_path = os.path.join(self._tmp.name, f"frame-{generation}-{request_id}.jpg")
 
         def grab_frame(task):
+            # The still keeps the display shape of the source, sample aspect included.
+            preview_w, preview_h = self._fit_box(self._source_dar(), 1280, 720)
             args = ["ffmpeg", "-hide_banner", "-v", "error", "-i", path, "-ss", f"{sec:.4f}",
-                    "-frames:v", "1", "-vf", "scale=1280:720:force_original_aspect_ratio=decrease",
+                    "-frames:v", "1", "-vf", f"scale={preview_w}:{preview_h}",
                     "-q:v", "3", "-y", preview_path]
             p = task.run_process(args, timeout=30)
             if p.returncode or not os.path.isfile(preview_path):
@@ -957,24 +1045,40 @@ class ClipBackend(QObject):
     def markOut(self):
         self.setRange(self._start, self._position)
 
+    @staticmethod
+    def _fit_box(dar, max_w, max_h):
+        """Largest box with the given display aspect that fits inside max_w x max_h."""
+        if not dar or not math.isfinite(dar) or dar <= 0:
+            return max_w, max_h
+        if dar >= max_w / max_h:
+            return max_w, max(2, round(max_w / dar))
+        return max(2, round(max_h * dar)), max_h
+
+    def _source_dar(self):
+        """Display aspect ratio of the source, sample aspect included."""
+        sample_aspect = self._sample_aspect if self._sample_aspect > 0 else 1.0
+        return self._width * sample_aspect / max(1, self._height)
+
+    def _target_dar(self, ratio, custom_ratio):
+        """Aspect ratio requested by the user, or None when the input is invalid."""
+        if ratio == "Original":
+            return self._source_dar()
+        parsed = parse_ratio(custom_ratio if ratio == "Livre" else ratio)
+        if not parsed:
+            return None
+        return parsed[0] / parsed[1]
+
     def _crop_geometry(self, ratio=None, custom_ratio=None):
         if not self._width or not self._height:
             return {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
         ratio = self._crop_ratio if ratio is None else ratio
         custom_ratio = self._crop_custom if custom_ratio is None else custom_ratio
-        source_dar = self._width * self._sample_aspect / self._height
-        if ratio == "Original":
-            target_dar = source_dar
-        elif ratio == "Livre":
-            try:
-                rw, rh = (float(v) for v in custom_ratio.split(":", 1))
-                target_dar = rw / rh if rw > 0 and rh > 0 else source_dar
-            except (ValueError, ZeroDivisionError):
-                target_dar = source_dar
-        else:
-            target_dar = ratio_value(ratio, self._width, self._height)
-            target_dar = target_dar or source_dar
-        if abs(target_dar - source_dar) < 0.002:
+        source_dar = self._source_dar()
+        target_dar = self._target_dar(ratio, custom_ratio)
+        if not target_dar or target_dar <= 0:
+            # An unusable ratio must not silently reshape the frame.
+            return {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
+        if abs(target_dar / source_dar - 1.0) < 0.001:
             return {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
         if target_dar < source_dar:
             width = min(1.0, target_dar / source_dar)
@@ -987,6 +1091,30 @@ class ClipBackend(QObject):
         return {"x": x - width / 2, "y": y - height / 2,
                 "width": width, "height": height}
 
+    def _crop_pixels(self, crop_rect):
+        """Crop window in source pixels: even sized and as close to the target as possible.
+
+        Rounding to the nearest even size (instead of always down) keeps the
+        exported aspect within ~0.1% of the requested one.
+        """
+        width = max(2, self._nearest_even(self._width * crop_rect["width"], self._width))
+        height = max(2, self._nearest_even(self._height * crop_rect["height"], self._height))
+        x = int(round(self._width * crop_rect["x"])) // 2 * 2
+        y = int(round(self._height * crop_rect["y"])) // 2 * 2
+        x = max(0, min(x, self._width - width))
+        y = max(0, min(y, self._height - height))
+        return width, height, x, y
+
+    @staticmethod
+    def _nearest_even(value, limit):
+        candidate = int(round(value))
+        candidate -= candidate % 2
+        if candidate < 2:
+            candidate = 2
+        if candidate > limit - limit % 2 and limit >= 2:
+            candidate = limit - limit % 2
+        return max(2, candidate)
+
     @Slot(str, str)
     def setCropRatio(self, ratio: str, custom_ratio: str):
         self._crop_ratio, self._crop_custom = ratio, custom_ratio
@@ -994,6 +1122,8 @@ class ClipBackend(QObject):
 
     @Slot(float, float)
     def moveCrop(self, center_x: float, center_y: float):
+        if not (math.isfinite(center_x) and math.isfinite(center_y)):
+            return
         rect = self._crop_geometry()
         self._crop_x = min(max(float(center_x), rect["width"] / 2), 1 - rect["width"] / 2)
         self._crop_y = min(max(float(center_y), rect["height"] / 2), 1 - rect["height"] / 2)
@@ -1010,29 +1140,12 @@ class ClipBackend(QObject):
             raise ValueError("Selecione um trecho com pelo menos 0,03 segundo.")
         if not math.isfinite(target_size_mb) or target_size_mb < 0:
             raise ValueError("Tamanho-alvo inválido.")
-        source_ratio = self._width * self._sample_aspect / max(1, self._height)
-        target_ratio = ratio_value(ratio, self._width, self._height)
         if ratio == "Livre":
-            try:
-                w, h = (int(v) for v in custom_ratio.split(":", 1))
-                if w < 1 or h < 1:
-                    raise ValueError()
-                target_ratio = w / h
-            except ValueError:
+            if not parse_ratio(custom_ratio):
                 raise ValueError("Proporção livre inválida. Exemplo: 3:2.")
-        elif ratio == "Original":
-            target_ratio = source_ratio
-        else:
-            try:
-                w, h = (int(v) for v in ratio.split(":", 1))
-                if w < 1 or h < 1:
-                    raise ValueError()
-                target_ratio = w / h
-            except ValueError:
-                raise ValueError("Proporção inválida.")
+        elif ratio != "Original" and not parse_ratio(ratio):
+            raise ValueError("Proporção inválida.")
         crop_rect = self._crop_geometry(ratio, custom_ratio)
-        if ratio == self._crop_ratio and custom_ratio == self._crop_custom:
-            crop_rect = self._crop_geometry()
         crop = crop_rect["width"] < .9999 or crop_rect["height"] < .9999
         needs_even_dimensions = codec != "copy" and (self._width % 2 or self._height % 2)
         if codec == "copy" and crop:
@@ -1076,12 +1189,7 @@ class ClipBackend(QObject):
         command += ["-map_metadata", "0"]
         video_filters = []
         if crop or needs_even_dimensions:
-            crop_w = max(2, int(self._width * crop_rect["width"]) // 2 * 2)
-            crop_h = max(2, int(self._height * crop_rect["height"]) // 2 * 2)
-            crop_x = int(round(self._width * crop_rect["x"])) // 2 * 2
-            crop_y = int(round(self._height * crop_rect["y"])) // 2 * 2
-            crop_x = max(0, min(crop_x, self._width - crop_w))
-            crop_y = max(0, min(crop_y, self._height - crop_h))
+            crop_w, crop_h, crop_x, crop_y = self._crop_pixels(crop_rect)
             video_filters.append(f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}")
         if api in ("vaapi", "qsv"):
             video_filters.extend(("format=nv12", "hwupload=extra_hw_frames=64"))
@@ -1254,15 +1362,13 @@ class ClipBackend(QObject):
         self._progress = 0
         self.progressChanged.emit()
         self._set_status(f"Exportando {job['name']} com {job['encoder']}…")
-        thread = QThread(self)
+        thread = QThread()
         task = ExportTask(command, job["duration"], temp_path, output)
         task.moveToThread(thread)
         thread.started.connect(task.run)
         task.progress.connect(self._set_progress)
         task.done.connect(self._export_done)
-        thread.finished.connect(task.deleteLater)
         thread.finished.connect(self._export_thread_finished)
-        thread.finished.connect(thread.deleteLater)
         self._export_thread, self._export_task = thread, task
         thread.start()
 
@@ -1306,7 +1412,24 @@ class ClipBackend(QObject):
             self._export_task.cancel()
             self._set_status("Cancelando exportação…")
 
-    @Slot()
+    def __del__(self):
+        # A backend dropped while background work is running must not take the
+        # worker threads down with it. Keep it minimal: during interpreter
+        # teardown only the threads have to be stopped.
+        try:
+            for task in tuple(self._tasks.values()):
+                task.cancel()
+            if self._export_task:
+                self._export_task.cancel()
+            threads = list(self._tasks)
+            if self._export_thread:
+                threads.append(self._export_thread)
+            for thread in threads:
+                if thread.isRunning():
+                    thread.wait()
+        except Exception:
+            pass
+
     def shutdown(self):
         if self._shutting_down:
             return
@@ -1326,6 +1449,8 @@ class ClipBackend(QObject):
         self._tasks.clear()
         self._export_task = self._export_thread = None
         self._tmp.cleanup()
+        if self in _LIVE_BACKENDS:
+            _LIVE_BACKENDS.remove(self)
 
     def _set_busy(self, value):
         if self._busy != value:

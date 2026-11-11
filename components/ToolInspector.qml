@@ -10,6 +10,8 @@ Rectangle {
     property string selectedTool: "Corte"
     property string selectedRatio: "Original"
     property string customRatioValue: "3:2"
+    property bool customRatioValid: true
+    property string selectedCodec: "h264"
     property bool includeAudio: true
     property bool audioMuted: false
     property alias volume: volumeSlider.value
@@ -19,6 +21,15 @@ Rectangle {
     signal centerCropRequested
     signal includeAudioToggled(bool value)
     signal audioMuteToggled(bool value)
+
+    function outputSummary() {
+        if (!root.clipBackend.hasVideo) return ""
+        const source = root.clipBackend.videoWidth + " × " + root.clipBackend.videoHeight
+        if (root.selectedCodec === "copy") return source + " · sem recorte (vídeo copiado)"
+        const size = root.clipBackend.cropSize
+        if (!size.cropped) return source + " · sem recorte"
+        return source + " → " + size.width + " × " + size.height + " · " + root.selectedRatio
+    }
 
     width: selectedTool === "Corte" ? 0 : Math.min(252, Math.max(220, parent.width * 0.26))
     height: parent.height
@@ -50,15 +61,29 @@ Rectangle {
                 }
             }
             LineEdit {
+                id: customRatioInput
                 width: parent.width; tokens: root.tokens
                 visible: root.selectedRatio === "Livre"
                 text: root.customRatioValue; placeholderText: "Ex.: 3:2"
-                invalid: !/^[1-9][0-9]*:[1-9][0-9]*$/.test(root.customRatioValue)
+                invalid: !root.customRatioValid
                 onEditingFinished: root.customRatioRequested(text)
+            }
+            // Typing in the field breaks the text binding, so mirror the shared
+            // value back whenever it changes somewhere else.
+            Connections {
+                target: root
+                function onCustomRatioValueChanged() {
+                    if (!customRatioInput.activeFocus) customRatioInput.text = root.customRatioValue
+                }
             }
             ActionButton { tokens: root.tokens; text: "Centralizar moldura"; symbol: "⊙"; enabled: root.clipBackend.hasVideo; onClicked: root.centerCropRequested() }
             Rectangle { width: parent.width; height: 1; color: root.tokens.outline }
-            Text { visible: root.clipBackend.hasVideo; text: root.clipBackend.videoWidth + " × " + root.clipBackend.videoHeight; color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
+            Text {
+                visible: root.clipBackend.hasVideo
+                text: root.outputSummary()
+                color: root.tokens.muted; font.pixelSize: root.tokens.textXs
+                wrapMode: Text.WordWrap
+            }
         }
 
         Column {

@@ -13,6 +13,7 @@ Rectangle {
     property string selectedQuality: "Alta qualidade"
     property string selectedRatio: "Original"
     property string customRatioValue: "3:2"
+    property bool customRatioValid: true
     property bool includeAudio: true
     property bool targetSizeEnabled: false
     property string targetSizeValue: "100"
@@ -42,10 +43,18 @@ Rectangle {
 
     function outputResolution() {
         if (!root.clipBackend.hasVideo) return "—"
-        const crop = root.clipBackend.cropRect
-        const width = Math.max(2, Math.floor(root.clipBackend.videoWidth * crop.width / 2) * 2)
-        const height = Math.max(2, Math.floor(root.clipBackend.videoHeight * crop.height / 2) * 2)
-        return width + " × " + height
+        // Stream copy keeps the source untouched, so it must report the source size.
+        if (root.selectedCodec === "copy")
+            return root.clipBackend.videoWidth + " × " + root.clipBackend.videoHeight
+        const size = root.clipBackend.cropSize
+        return size.width + " × " + size.height
+    }
+    function framingSummary() {
+        if (!root.clipBackend.hasVideo) return ""
+        if (root.selectedCodec === "copy") return "sem recorte (vídeo copiado)"
+        const size = root.clipBackend.cropSize
+        if (!size.cropped) return "enquadramento original"
+        return "recorte " + root.selectedRatio + " · " + size.width + " × " + size.height
     }
     function encoderSummary() {
         if (root.selectedCodec === "copy") return "Sem recodificar"
@@ -58,9 +67,12 @@ Rectangle {
         return codecName + " · " + encoder
     }
     function durationSummary() {
-        const seconds = Math.max(0, root.clipBackend.clipEnd - root.clipBackend.clipStart)
-        return String(Math.floor(seconds / 60)).padStart(2, "0") + ":" +
-               (seconds % 60).toFixed(2).padStart(5, "0")
+        const total = Math.max(0, root.clipBackend.clipEnd - root.clipBackend.clipStart)
+        const rounded = Math.round(total * 100) / 100
+        const minutes = Math.floor(rounded / 60)
+        const seconds = Math.round((rounded - minutes * 60) * 100) / 100
+        return String(minutes).padStart(2, "0") + ":" +
+               seconds.toFixed(2).padStart(5, "0")
     }
 
     width: Math.min(390, windowWidth - 32)
@@ -212,9 +224,12 @@ Rectangle {
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Enquadramento"; detail: root.selectedRatio; expanded: false
+                    width: parent.width; tokens: root.tokens; title: "Enquadramento"
+                    detail: root.selectedCodec === "copy" ? "não se aplica" : root.selectedRatio
+                    expanded: false
                     Flow {
                         width: parent.width; spacing: 6
+                        enabled: root.selectedCodec !== "copy"
                         Repeater {
                             model: ["Original", "4:3", "16:9", "21:9", "9:16", "1:1", "4:5", "Livre"]
                             delegate: ActionButton {
@@ -226,10 +241,23 @@ Rectangle {
                         }
                     }
                     LineEdit {
-                        width: parent.width; tokens: root.tokens; visible: root.selectedRatio === "Livre"
+                        id: customRatioInput
+                        width: parent.width; tokens: root.tokens
+                        visible: root.selectedRatio === "Livre" && root.selectedCodec !== "copy"
                         text: root.customRatioValue; placeholderText: "Proporção · ex.: 3:2"
-                        invalid: !/^[1-9][0-9]*:[1-9][0-9]*$/.test(root.customRatioValue)
+                        invalid: !root.customRatioValid
                         onEditingFinished: root.customRatioChanged(text)
+                    }
+                    Text {
+                        width: parent.width; visible: root.selectedCodec === "copy"
+                        text: "O stream copy mantém as dimensões originais, então o enquadramento fica desativado."
+                        color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap
+                    }
+                    Connections {
+                        target: root
+                        function onCustomRatioValueChanged() {
+                            if (!customRatioInput.activeFocus) customRatioInput.text = root.customRatioValue
+                        }
                     }
                 }
 
@@ -333,7 +361,7 @@ Rectangle {
 
         Rectangle {
             width: parent.width
-            height: 76
+            height: 94
             radius: root.tokens.radiusMedium
             color: root.tokens.surface
             border.color: root.tokens.outline
@@ -364,6 +392,14 @@ Rectangle {
                     text: root.encoderSummary() + " · " + Math.round(root.clipBackend.fps) + " fps · " +
                           root.outputFormat.toUpperCase() +
                           (root.includeAudio && root.clipBackend.hasAudio ? " · AAC" : " · sem áudio")
+                    color: root.tokens.muted
+                    font.pixelSize: root.tokens.textXs
+                    elide: Text.ElideRight
+                }
+                Text {
+                    width: parent.width
+                    visible: root.clipBackend.hasVideo
+                    text: root.framingSummary()
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
                     elide: Text.ElideRight

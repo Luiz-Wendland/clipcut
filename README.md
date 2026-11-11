@@ -24,8 +24,8 @@ https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba
 
 | Windows | Linux |
 |---|---|
-| [Instalador MSI](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.1.0/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.1.0/ClipCut-x86_64.AppImage) |
-| [ZIP portátil](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.1.0/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.1.0/ClipCut-linux-x86_64.tar.gz) |
+| [Instalador MSI](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-x86_64.AppImage) |
+| [ZIP portátil](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-linux-x86_64.tar.gz) |
 
 Pacotes **x86_64**, com Python e Qt incluídos. **Instale FFmpeg e ffprobe separadamente e deixe ambos no `PATH`.**
 
@@ -37,12 +37,14 @@ No ZIP, extraia e abra `main.exe`; no tar.gz, execute `./ClipCut`. Dê permissã
 
 1. Abra ou arraste um vídeo para a janela.
 2. Marque o início e o fim na timeline com miniaturas e waveform.
-3. Use **Enquadrar** para ajustar a proporção e o recorte.
+3. Use **Enquadrar** para ajustar a proporção e o recorte. O painel mostra o tamanho final (por exemplo `1920 × 1080 → 1920 × 822`) e a moldura pode ser arrastada.
 4. Em **Exportar**, escolha codec, qualidade e destino. Exporte ou adicione à fila.
+
+Proporções prontas: Original, 4:3, 16:9, 21:9, 9:16, 1:1, 4:5 e **Livre** (por exemplo `3:2`). Trocar de proporção preserva a posição do recorte; use **Centralizar moldura** para voltar ao centro.
 
 **Atalhos:** Espaço para reproduzir/pausar, I/O para início/fim e ←/→ para avançar ou voltar um quadro.
 
-H.264, HEVC, AV1 e aceleração por GPU dependem dos encoders e drivers disponíveis. Copiar vídeo sem recodificar limita o corte aos quadros-chave e não permite recorte. O tamanho-alvo é uma estimativa.
+H.264, HEVC, AV1 e aceleração por GPU dependem dos encoders e drivers disponíveis. Copiar vídeo sem recodificar limita o corte aos quadros-chave e não permite recorte. O tamanho-alvo é uma estimativa. Vídeos gravados no celular (com matriz de rotação) e vídeos anamórficos são enquadrados na orientação em que são exibidos.
 
 ## Executar pelo código-fonte
 

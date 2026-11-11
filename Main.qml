@@ -25,6 +25,7 @@ Window {
     property string selectedQuality: "Alta qualidade"
     property string selectedRatio: "Original"
     property string customRatioValue: "3:2"
+    property string lastValidCustomRatio: "3:2"
     property bool includeAudio: true
     property bool audioMuted: false
     property bool targetSizeEnabled: false
@@ -53,7 +54,12 @@ Window {
     readonly property var tokens: theme
     readonly property var clipBackend: backend
     readonly property var mediaPlayer: player
-    readonly property bool customRatioValid: /^[1-9][0-9]*:[1-9][0-9]*$/.test(customRatioValue)
+    readonly property bool customRatioValid: /^[1-9][0-9]{0,3}:[1-9][0-9]{0,3}$/.test(customRatioValue)
+    // The crop overlay only makes sense once the video frame is on screen:
+    // until then VideoOutput.contentRect still covers the whole panel.
+    readonly property bool showCropOverlay: backend.hasVideo &&
+                                           root.activeTool === "Enquadrar" &&
+                                           videoOutput.sourceRect.width > 0
     readonly property bool outputNameValid: outputName.trim().length > 0 &&
                                             outputName.trim() !== "." && outputName.trim() !== ".." &&
                                             !/[\/\\\x00-\x1f]/.test(outputName)
@@ -75,8 +81,23 @@ Window {
 
     function formatTime(seconds) {
         seconds = Math.max(0, Number(seconds) || 0)
-        const minutes = Math.floor(seconds / 60)
-        return String(minutes).padStart(2, "0") + ":" + (seconds % 60).toFixed(2).padStart(5, "0")
+        const rounded = Math.round(seconds * 100) / 100
+        const minutes = Math.floor(rounded / 60)
+        const rest = Math.round((rounded - minutes * 60) * 100) / 100
+        return String(minutes).padStart(2, "0") + ":" + rest.toFixed(2).padStart(5, "0")
+    }
+    function applyRatio(ratio) {
+        // The framing centre is preserved on purpose: only the crop window
+        // changes, so a carefully placed crop is not thrown away.
+        root.selectedRatio = ratio
+        const custom = root.customRatioValid ? root.customRatioValue : root.lastValidCustomRatio
+        backend.setCropRatio(ratio, custom)
+    }
+    function applyCustomRatio(ratio) {
+        root.customRatioValue = ratio
+        if (!root.customRatioValid) return
+        root.lastValidCustomRatio = ratio
+        backend.setCropRatio("Livre", ratio)
     }
     function showNotice(message, isError) {
         notice = message
@@ -537,13 +558,13 @@ Window {
 
                     // Four quiet masks leave the actual crop boundary unobscured.
                     Rectangle {
-                        visible: backend.hasVideo && root.activeTool === "Enquadrar" && backend.cropRect.width < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.width < 0.999
                         x: videoOutput.contentRect.x; y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * backend.cropRect.x; height: videoOutput.contentRect.height
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: backend.hasVideo && root.activeTool === "Enquadrar" && backend.cropRect.width < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.width < 0.999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * (backend.cropRect.x + backend.cropRect.width)
                         y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * (1 - backend.cropRect.x - backend.cropRect.width)
@@ -551,7 +572,7 @@ Window {
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: backend.hasVideo && root.activeTool === "Enquadrar" && backend.cropRect.height < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.height < 0.999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * backend.cropRect.x
                         y: videoOutput.contentRect.y
                         width: videoOutput.contentRect.width * backend.cropRect.width
@@ -559,7 +580,7 @@ Window {
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: backend.hasVideo && root.activeTool === "Enquadrar" && backend.cropRect.height < 0.999
+                        visible: root.showCropOverlay && backend.cropRect.height < 0.999
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * backend.cropRect.x
                         y: videoOutput.contentRect.y + videoOutput.contentRect.height * (backend.cropRect.y + backend.cropRect.height)
                         width: videoOutput.contentRect.width * backend.cropRect.width
@@ -567,8 +588,8 @@ Window {
                         color: "#b5000000"
                     }
                     Rectangle {
-                        visible: backend.hasVideo && root.activeTool === "Enquadrar" &&
-                                 (backend.cropRect.width < 0.999 || backend.cropRect.height < 0.999)
+                        objectName: "cropFrame"
+                        visible: root.showCropOverlay && backend.cropActive
                         x: videoOutput.contentRect.x + videoOutput.contentRect.width * backend.cropRect.x
                         y: videoOutput.contentRect.y + videoOutput.contentRect.height * backend.cropRect.y
                         width: videoOutput.contentRect.width * backend.cropRect.width
@@ -593,6 +614,30 @@ Window {
                                 backend.moveCrop(root.cropCenterX + (point.x - root.cropPressX) / videoOutput.contentRect.width,
                                                  root.cropCenterY + (point.y - root.cropPressY) / videoOutput.contentRect.height)
                             }
+                        }
+                    }
+
+                    // The framing keeps applying to the export even when another
+                    // tab is active, so make it visible instead of invisible.
+                    Rectangle {
+                        visible: backend.hasVideo && backend.cropActive &&
+                                 root.activeTool !== "Enquadrar" &&
+                                 videoOutput.sourceRect.width > 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: 12
+                        width: badgeLabel.implicitWidth + 20
+                        height: 26
+                        radius: theme.radiusFull
+                        color: theme.surfaceHigh
+                        border.color: theme.accent
+                        border.width: 1
+                        Text {
+                            id: badgeLabel
+                            anchors.centerIn: parent
+                            text: "Recorte " + root.selectedRatio + " aplicado"
+                            color: theme.foreground
+                            font.pixelSize: theme.textXs
                         }
                     }
 
@@ -679,20 +724,15 @@ Window {
                     selectedTool: root.activeTool
                     selectedRatio: root.selectedRatio
                     customRatioValue: root.customRatioValue
+                    customRatioValid: root.customRatioValid
+                    selectedCodec: root.selectedCodec
                     includeAudio: root.includeAudio
                     audioMuted: root.audioMuted
                 }
                 Connections {
                     target: inspector
-                    function onRatioRequested(ratio) {
-                        root.selectedRatio = ratio
-                        backend.setCropRatio(ratio, root.customRatioValue)
-                        backend.centerCrop()
-                    }
-                    function onCustomRatioRequested(ratio) {
-                        root.customRatioValue = ratio
-                        if (root.customRatioValid) backend.setCropRatio("Livre", ratio)
-                    }
+                    function onRatioRequested(ratio) { root.applyRatio(ratio) }
+                    function onCustomRatioRequested(ratio) { root.applyCustomRatio(ratio) }
                     function onCenterCropRequested() { backend.centerCrop() }
                     function onIncludeAudioToggled(value) { root.includeAudio = value }
                     function onAudioMuteToggled(value) { root.audioMuted = value }
@@ -761,6 +801,7 @@ Window {
         selectedQuality: root.selectedQuality
         selectedRatio: root.selectedRatio
         customRatioValue: root.customRatioValue
+        customRatioValid: root.customRatioValid
         includeAudio: root.includeAudio
         targetSizeEnabled: root.targetSizeEnabled
         targetSizeValue: root.targetSizeValue
@@ -771,15 +812,8 @@ Window {
         onCodecChanged: codec => root.selectedCodec = codec
         onEncoderPreferenceChanged: useGpu => backend.setPreferGpu(useGpu)
         onQualityChanged: quality => root.selectedQuality = quality
-        onRatioChanged: ratio => {
-            root.selectedRatio = ratio
-            backend.setCropRatio(ratio, root.customRatioValue)
-            backend.centerCrop()
-        }
-        onCustomRatioChanged: ratio => {
-            root.customRatioValue = ratio
-            if (root.customRatioValid) backend.setCropRatio("Livre", ratio)
-        }
+        onRatioChanged: ratio => root.applyRatio(ratio)
+        onCustomRatioChanged: ratio => root.applyCustomRatio(ratio)
         onAudioInclusionRequested: enabled => root.includeAudio = enabled
         onTargetEnabledRequested: enabled => root.targetSizeEnabled = enabled
         onTargetValueEdited: value => root.targetSizeValue = value
