@@ -102,6 +102,12 @@ jobs:
         env:
           APPIMAGETOOL: /tmp/appimagetool
         run: packaging/package-linux.sh
+      - name: Smoke-test both packaged Linux builds
+        run: |
+          scratch=$(mktemp -d)
+          tar -xzf dist/ClipCut-linux-x86_64.tar.gz -C "$scratch"
+          "$scratch/ClipCut-linux-x86_64/ClipCut" --smoke-test
+          APPIMAGE_EXTRACT_AND_RUN=1 dist/ClipCut-x86_64.AppImage --smoke-test
       - uses: actions/upload-artifact@v7
         with:
           name: clipcut-linux-x86_64
@@ -129,6 +135,22 @@ jobs:
       - name: Package Windows ZIP and MSI
         shell: pwsh
         run: packaging/package-windows.ps1
+      - name: Smoke-test packaged Windows builds
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "clipcut-smoke"
+          $portable = Join-Path $root "portable"
+          $installer = Join-Path $root "installer"
+          Expand-Archive -Path (Resolve-Path dist/ClipCut-windows-x86_64.zip) -DestinationPath $portable
+          $msi = (Resolve-Path dist/ClipCut-windows-x86_64.msi).Path
+          $unpack = Start-Process msiexec.exe -ArgumentList "/a `"$msi`" /qn TARGETDIR=`"$installer`"" -Wait -PassThru
+          if ($unpack.ExitCode -ne 0) { throw "MSI extraction failed: $($unpack.ExitCode)" }
+          $fromMsi = Get-ChildItem $installer -Recurse -Filter main.exe | Select-Object -First 1
+          if (!$fromMsi) { throw "MSI did not contain main.exe" }
+          foreach ($exe in @((Join-Path $portable "main.exe"), $fromMsi.FullName)) {
+            $probe = Start-Process $exe -ArgumentList "--smoke-test" -Wait -PassThru
+            if ($probe.ExitCode -ne 0) { throw "Smoke test failed for ${exe}: $($probe.ExitCode)" }
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: clipcut-windows-x86_64
