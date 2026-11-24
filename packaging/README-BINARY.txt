@@ -1,17 +1,16 @@
-ClipCut — pacote independente
+ClipCut — standalone package
 
-O Python e o Qt já estão incluídos neste pacote. Os programas de linha de
-comando ffmpeg e ffprobe não estão incluídos: instale-os pelo gerenciador de
-pacotes do sistema e confirme que ambos estão disponíveis no PATH para abrir,
-analisar e exportar vídeos. O backend interno de reprodução do Qt é separado.
+This package includes Python and Qt. It does not include the ffmpeg and ffprobe
+command-line tools. Install them separately and make sure both are on your PATH
+to open, analyze, and export videos. Qt uses its own playback backend.
 
-Linux tar.gz: execute ./ClipCut
-Windows zip: execute main.exe
+Linux tar.gz: run ./ClipCut
+Windows ZIP: run main.exe
 Windows MSI: install ClipCut, then launch main.exe from the install folder.
-AppImage: torne o arquivo executável e abra-o; FFmpeg e ffprobe continuam
-           sendo necessários no PATH.
+AppImage: make the file executable and open it. FFmpeg and ffprobe must still
+          be on your PATH.
 
-Consulte README.md para controles, codecs, limitações e solução de problemas.
-O projeto ClipCut está sob MIT (LICENSE). Qt/PySide6 e os demais componentes
-empacotados mantêm licenças próprias; consulte README.md e os avisos dos
-respectivos fornecedores antes de redistribuir o pacote.
+See README.md for controls, codecs, limitations, and troubleshooting.
+ClipCut is licensed under MIT (LICENSE). Qt/PySide6 and other bundled
+components retain their own licenses. See README.md and their notices before
+redistributing this package.

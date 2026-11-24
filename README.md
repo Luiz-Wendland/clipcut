@@ -1,66 +1,68 @@
 <p align="center">
-  <img src="assets/branding/clipcut-split-timeline-smooth.svg" alt="Logo do ClipCut" width="88" height="88">
+  <img src="assets/branding/clipcut-split-timeline-smooth.svg" alt="ClipCut logo" width="88" height="88">
 </p>
 
 <h1 align="center">ClipCut</h1>
 
-<p align="center">Editor de clipes para Windows e Linux. Corte, enquadre e exporte vídeos localmente.</p>
+<p align="center">A video clip editor for Windows and Linux. Trim, crop, and export video locally.</p>
 
 <p align="center">
   <a href="#download">Download</a> ·
-  <a href="#como-usar">Como usar</a> ·
-  <a href="https://github.com/Luiz-Wendland/clipcut/issues">Reportar problema</a>
+  <a href="#how-to-use">How to use</a> ·
+  <a href="https://github.com/Luiz-Wendland/clipcut/issues">Report an issue</a>
 </p>
 
 <p align="center">
-  <a href="requirements.txt"><img src="https://img.shields.io/badge/Python_%C2%B7_Qt_Quick-b8a4ed" alt="Python e Qt Quick"></a>
-  <a href="https://github.com/Luiz-Wendland/clipcut/releases/latest"><img src="https://img.shields.io/badge/Windows_%C2%B7_Linux-24292f" alt="Windows e Linux"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-b8a4ed" alt="Licença MIT"></a>
+  <a href="requirements.txt"><img src="https://img.shields.io/badge/Python_%C2%B7_Qt_Quick-b8a4ed" alt="Python and Qt Quick"></a>
+  <a href="https://github.com/Luiz-Wendland/clipcut/releases/latest"><img src="https://img.shields.io/badge/Windows_%C2%B7_Linux-24292f" alt="Windows and Linux"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-b8a4ed" alt="MIT license"></a>
 </p>
 
-https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba
+[Watch the original demo (Portuguese)](https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba).
 
 ## Download
 
 | Windows | Linux |
 |---|---|
-| [Instalador MSI](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-x86_64.AppImage) |
-| [ZIP portátil](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-linux-x86_64.tar.gz) |
+| [MSI installer](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-x86_64.AppImage) |
+| [Portable ZIP](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-linux-x86_64.tar.gz) |
 
-Pacotes **x86_64**, com Python e Qt incluídos. **Instale FFmpeg e ffprobe separadamente e deixe ambos no `PATH`.**
+These **x86_64** packages include Python and Qt. **Install FFmpeg and ffprobe separately and make sure both are on your `PATH`.**
 
-No ZIP, extraia e abra `main.exe`; no tar.gz, execute `./ClipCut`. Dê permissão de execução ao AppImage antes de abri-lo. O MSI exige administrador. Os pacotes Windows não são assinados digitalmente.
+Extract the ZIP and open `main.exe`, or extract the tar.gz and run `./ClipCut`. Make the AppImage executable before opening it. The MSI requires administrator privileges. Windows packages are not digitally signed.
 
-[Todas as versões](https://github.com/Luiz-Wendland/clipcut/releases).
+[All releases](https://github.com/Luiz-Wendland/clipcut/releases).
 
-## Como usar
+The v0.2.0 downloads use the original Portuguese interface. To use the English interface, [run from source](#run-from-source).
 
-1. Abra ou arraste um vídeo para a janela.
-2. Marque o início e o fim na timeline com miniaturas e waveform.
-3. Use **Enquadrar** para ajustar a proporção e o recorte. O painel mostra o tamanho final (por exemplo `1920 × 1080 → 1920 × 822`) e a moldura pode ser arrastada.
-4. Em **Exportar**, escolha codec, qualidade e destino. Exporte ou adicione à fila.
+## How to use
 
-Proporções prontas: Original, 4:3, 16:9, 21:9, 9:16, 1:1, 4:5 e **Livre** (por exemplo `3:2`). Trocar de proporção preserva a posição do recorte; use **Centralizar moldura** para voltar ao centro.
+1. Open a video or drag it into the window.
+2. Set in and out points on the timeline using the thumbnails and audio waveform.
+3. Use **Crop** to choose an aspect ratio and drag the crop frame. The panel shows the output dimensions, for example `1920 × 1080 → 1920 × 822`.
+4. In **Export**, choose a codec, quality, and destination. Export the clip or add it to the queue.
 
-**Atalhos:** Espaço para reproduzir/pausar, I/O para início/fim e ←/→ para avançar ou voltar um quadro.
+Aspect ratios: Original, 4:3, 16:9, 21:9, 9:16, 1:1, 4:5, or **Custom** (for example, `3:2`). Changing the ratio preserves the crop position; use **Center crop** to reset it.
 
-H.264, HEVC, AV1 e aceleração por GPU dependem dos encoders e drivers disponíveis. Copiar vídeo sem recodificar limita o corte aos quadros-chave e não permite recorte. O tamanho-alvo é uma estimativa. Vídeos gravados no celular (com matriz de rotação) e vídeos anamórficos são enquadrados na orientação em que são exibidos.
+**Shortcuts:** Space to play or pause, I/O to set in and out points, and ←/→ to step one frame backward or forward.
 
-## Executar pelo código-fonte
+H.264, HEVC, AV1, and GPU encoding depend on the encoders and drivers available. Stream copy trims at keyframes and does not support cropping. Target file size is an estimate. Videos with rotation metadata and anamorphic video are cropped as displayed.
 
-Requer Python 3.10+, PySide6 6.8+, FFmpeg e ffprobe.
+## Run from source
+
+Requires Python 3.10+, PySide6 6.8+, FFmpeg, and ffprobe.
 
 ```sh
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-Para rodar os testes:
+Run the tests:
 
 ```sh
 python -m unittest discover -s tests -v
 ```
 
-## Licença
+## License
 
-[MIT](LICENSE). Qt/PySide6 e FFmpeg mantêm suas próprias licenças.
+[MIT](LICENSE). Qt/PySide6 and FFmpeg are distributed under their own licenses.
