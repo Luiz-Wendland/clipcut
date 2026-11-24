@@ -18,7 +18,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-b8a4ed" alt="MIT license"></a>
 </p>
 
-[Watch the original demo (Portuguese)](https://github.com/user-attachments/assets/8a3c64b4-8a26-4dd4-8bfa-653ddabd03ba).
+https://github.com/user-attachments/assets/d6869850-90fa-4b82-ad44-f9b1bd8cca2f
 
 ## Download
 
