@@ -114,7 +114,7 @@ Window {
         let name = value.trim()
         name = name.replace(/\.(mp4|mkv)$/i, "").replace(/[. ]+$/, "")
         if (!name || name === "." || name === ".." || /[\/\\\x00-\x1f]/.test(name)) {
-            showNotice("Use a valid file name without slashes.", true)
+            showNotice(qsTr("Use a valid file name without slashes."), true)
             return
         }
         outputName = name
@@ -162,11 +162,11 @@ Window {
         const target = targetSizeEnabled ? Number(targetSizeValue) : 0
         const ratio = selectedRatio
         if (targetSizeEnabled && (!Number.isFinite(target) || target <= 0)) {
-            showNotice("Enter a valid target size in MB.", true)
+            showNotice(qsTr("Enter a valid target size in MB."), true)
             return
         }
         if (ratio === "Custom" && !customRatioValid) {
-            showNotice("Enter a valid aspect ratio, such as 3:2.", true)
+            showNotice(qsTr("Enter a valid aspect ratio, such as 3:2."), true)
             return
         }
         if (!pendingOutput) {
@@ -181,15 +181,15 @@ Window {
     function enqueueCurrentExport() {
         const target = targetSizeEnabled ? Number(targetSizeValue) : 0
         if (targetSizeEnabled && (!Number.isFinite(target) || target <= 0)) {
-            showNotice("Enter a valid target size in MB.", true)
+            showNotice(qsTr("Enter a valid target size in MB."), true)
             return
         }
         if (selectedRatio === "Custom" && !customRatioValid) {
-            showNotice("Enter a valid aspect ratio, such as 3:2.", true)
+            showNotice(qsTr("Enter a valid aspect ratio, such as 3:2."), true)
             return
         }
         if (!outputNameValid) {
-            showNotice("Use a valid file name without slashes.", true)
+            showNotice(qsTr("Use a valid file name without slashes."), true)
             return
         }
         if (!outputDirectory) {
@@ -207,11 +207,11 @@ Window {
         pendingOutput = generatedOutputPath(directory)
         if (!beginExport) return
         if (!outputNameValid) {
-            showNotice("Use a valid file name without slashes.", true)
+            showNotice(qsTr("Use a valid file name without slashes."), true)
             return
         }
         if (backend.outputIsSource(pendingOutput)) {
-            showNotice("The output cannot overwrite the source video.", true)
+            showNotice(qsTr("The output cannot overwrite the source video."), true)
             return
         }
         if (backend.outputExists(pendingOutput)) showOverwrite = true
@@ -242,7 +242,7 @@ Window {
             }
         }
         onErrorOccurred: function(error, errorString) {
-            root.showNotice("Playback error: " + errorString, true)
+            root.showNotice(qsTr("Playback error: %1").arg(errorString), true)
         }
     }
     Timer {
@@ -273,15 +273,15 @@ Window {
     FileDialog {
         id: openDialog
         objectName: "openFileDialog"
-        title: "Open video"
+        title: qsTr("Open video")
         fileMode: FileDialog.OpenFile
-        nameFilters: ["Videos (*.mp4 *.mkv *.mov *.webm *.avi *.m4v *.ts)", "All files (*)"]
+        nameFilters: [qsTr("Videos (*.mp4 *.mkv *.mov *.webm *.avi *.m4v *.ts)"), qsTr("All files (*)")]
         onAccepted: backend.openLocalUrl(selectedFile.toString())
     }
     FolderDialog {
         id: folderDialog
         objectName: "outputFolderDialog"
-        title: "Choose export folder"
+        title: qsTr("Choose export folder")
         onAccepted: {
             const directory = backend.localPath(selectedFolder.toString())
             if (directory) {
@@ -294,7 +294,7 @@ Window {
             }
             else {
                 root.folderDialogForQueue = false
-                root.showNotice("Choose a local folder.", true)
+                root.showNotice(qsTr("Choose a local folder."), true)
             }
             root.folderDialogForExport = false
         }
@@ -393,7 +393,7 @@ Window {
                     Text { text: "ClipCut"; color: theme.foreground; font.pixelSize: theme.textMd; font.weight: Font.DemiBold }
                     Text {
                         width: parent.width
-                        text: backend.fileName || "Simple video trimming"
+                        text: backend.fileName || qsTr("Simple video trimming")
                         color: theme.muted
                         font.pixelSize: theme.textXs
                         elide: Text.ElideMiddle
@@ -432,7 +432,7 @@ Window {
                     id: openVideoButton
                     objectName: "openVideoButton"
                     tokens: root.tokens
-                    text: "Open"
+                    text: qsTr("Open")
                     symbol: "+"
                     width: backend.filePath || backend.busy ? implicitWidth : 0
                     visible: width > 0
@@ -441,7 +441,7 @@ Window {
                 }
                 ActionButton {
                     tokens: root.tokens
-                    text: "Preferences"
+                    text: qsTr("Preferences")
                     symbol: "⚙"
                     kind: "quiet"
                     compact: true
@@ -451,7 +451,7 @@ Window {
                 }
                 ActionButton {
                     tokens: root.tokens
-                    text: "Export"
+                    text: qsTr("Export")
                     symbol: "↗"
                     kind: "primary"
                     enabled: backend.hasVideo && !backend.busy
@@ -483,14 +483,14 @@ Window {
                         spacing: 8
                         Repeater {
                             model: [
-                                { name: "Trim", glyph: "⌁" },
-                                { name: "Crop", glyph: "◱" },
-                                { name: "Audio", glyph: "♫" }
+                                { name: "Trim", label: qsTr("Trim"), glyph: "⌁" },
+                                { name: "Crop", label: qsTr("Crop"), glyph: "◱" },
+                                { name: "Audio", label: qsTr("Audio"), glyph: "♫" }
                             ]
                             delegate: ToolTab {
                                 required property var modelData
                                 tokens: root.tokens
-                                title: modelData.name
+                                title: modelData.label
                                 symbol: modelData.glyph
                                 selected: root.activeTool === modelData.name
                                 enabled: modelData.name === "Trim" || backend.hasVideo
@@ -541,9 +541,9 @@ Window {
                                 fillMode: VectorImage.PreserveAspectFit
                                 preferredRendererType: VectorImage.CurveRenderer
                             }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Start with a video"; color: theme.foreground; font.pixelSize: theme.textLg; font.weight: Font.DemiBold }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Open a video or drop it here"; color: theme.muted; font.pixelSize: theme.textSm }
-                            ActionButton { anchors.horizontalCenter: parent.horizontalCenter; tokens: root.tokens; text: "Open video"; symbol: "+"; kind: "tonal"; onClicked: openDialog.open() }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: qsTr("Start with a video"); color: theme.foreground; font.pixelSize: theme.textLg; font.weight: Font.DemiBold }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: qsTr("Open a video or drop it here"); color: theme.muted; font.pixelSize: theme.textSm }
+                            ActionButton { anchors.horizontalCenter: parent.horizontalCenter; tokens: root.tokens; text: qsTr("Open video"); symbol: "+"; kind: "tonal"; onClicked: openDialog.open() }
                     }
 
                     Rectangle {
@@ -553,7 +553,7 @@ Window {
                         height: 38
                         radius: theme.radiusFull
                         color: "#dc191a20"
-                        Text { id: loadingLabel; anchors.centerIn: parent; text: "Loading video…"; color: theme.foreground; font.pixelSize: theme.textSm }
+                        Text { id: loadingLabel; anchors.centerIn: parent; text: qsTr("Loading video…"); color: theme.foreground; font.pixelSize: theme.textSm }
                     }
 
                     // Four quiet masks leave the actual crop boundary unobscured.
@@ -635,7 +635,7 @@ Window {
                         Text {
                             id: badgeLabel
                             anchors.centerIn: parent
-                            text: "Crop " + root.selectedRatio + " applied"
+                            text: qsTr("Crop %1 applied").arg(root.selectedRatio === "Custom" ? qsTr("Custom") : root.selectedRatio)
                             color: theme.foreground
                             font.pixelSize: theme.textXs
                         }
@@ -651,7 +651,7 @@ Window {
                         z: 12
                         Text {
                             anchors.centerIn: parent
-                            text: "Drop a video to open it"
+                            text: qsTr("Drop a video to open it")
                             color: theme.foreground
                             font.pixelSize: theme.textMd
                             font.weight: Font.DemiBold
@@ -676,14 +676,14 @@ Window {
                             anchors.rightMargin: 12
                             spacing: 6
                             ActionButton {
-                                tokens: root.tokens; text: "− frame"; compact: true; kind: "quiet"
+                                tokens: root.tokens; text: qsTr("− frame"); compact: true; kind: "quiet"
                                 anchors.verticalCenter: parent.verticalCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 - (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
                             }
                             ActionButton {
                                 tokens: root.tokens
-                                text: root.isPlaying ? "Pause" : "Play"
+                                text: root.isPlaying ? qsTr("Pause") : qsTr("Play")
                                 symbol: root.isPlaying ? "Ⅱ" : "▶"
                                 kind: "tonal"
                                 anchors.verticalCenter: parent.verticalCenter
@@ -698,7 +698,7 @@ Window {
                                 }
                             }
                             ActionButton {
-                                tokens: root.tokens; text: "+ frame"; compact: true; kind: "quiet"
+                                tokens: root.tokens; text: qsTr("+ frame"); compact: true; kind: "quiet"
                                 anchors.verticalCenter: parent.verticalCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 + (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
@@ -769,7 +769,7 @@ Window {
                 ActionButton {
                     visible: backend.exporting
                     tokens: root.tokens
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     kind: "danger"
                     compact: true
                     anchors.verticalCenter: parent.verticalCenter
@@ -843,7 +843,7 @@ Window {
         visible: root.showSettings || opacity > 0.01
         enabled: root.showSettings
         width: Math.min(340, root.width - 32)
-        height: Math.min(360, root.height - 36)
+        height: Math.min(420, root.height - 36)
         x: root.showSettings ? root.width - width - 18 : root.width + 8
         y: 18
         radius: theme.radiusExtraLarge
@@ -857,20 +857,44 @@ Window {
         Behavior on scale { NumberAnimation { duration: theme.spatialFast; easing.type: Easing.OutCubic } }
         Column {
             anchors.fill: parent; anchors.margins: 18; spacing: 10
-            Row {
+            RowLayout {
                 width: parent.width; height: 38
-                Text { text: "Preferences"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                Item { width: Math.max(0, parent.width - 150); height: 1 }
+                Text { text: qsTr("Preferences"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold }
+                Item { Layout.fillWidth: true }
                 ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.showSettings = false }
             }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
-            Text { text: "APPEARANCE"; color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+            Text { text: qsTr("Language"); color: theme.muted; font.pixelSize: theme.textSm }
+            Controls.ComboBox {
+                objectName: "languageSelector"
+                width: parent.width
+                height: 34
+                textRole: "label"
+                valueRole: "mode"
+                model: [
+                    { mode: "system", label: qsTr("System default") },
+                    { mode: "en", label: "English" },
+                    { mode: "pt-BR", label: "Português (Brasil)" }
+                ]
+                currentIndex: backend.languageMode === "pt-BR" ? 2 : backend.languageMode === "en" ? 1 : 0
+                onActivated: backend.setLanguageMode(currentValue)
+                Accessible.name: qsTr("Language")
+                palette.base: theme.surfaceHigh
+                palette.button: theme.surfaceHigh
+                palette.buttonText: theme.foreground
+                palette.text: theme.foreground
+                palette.window: theme.panel
+                palette.highlight: theme.accentSoft
+                palette.highlightedText: theme.foreground
+            }
+            Rectangle { width: parent.width; height: 1; color: theme.outline }
+            Text { text: qsTr("APPEARANCE"); color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
             Row {
                 spacing: 7
                 ActionButton { tokens: root.tokens; text: "ClipCut"; checked: root.themeMode === "ClipCut"; onClicked: root.themeMode = "ClipCut" }
-                ActionButton { tokens: root.tokens; text: "Follow KDE"; checked: root.themeMode === "KDE"; onClicked: root.themeMode = "KDE" }
+                ActionButton { tokens: root.tokens; text: qsTr("Follow KDE"); checked: root.themeMode === "KDE"; onClicked: root.themeMode = "KDE" }
             }
-            Text { width: parent.width; text: root.themeMode === "KDE" ? "Uses the active KDE color scheme." : "Dark graphite and soft lavender."; color: theme.muted; font.pixelSize: theme.textXs; wrapMode: Text.WordWrap }
+            Text { width: parent.width; text: root.themeMode === "KDE" ? qsTr("Uses the active KDE color scheme.") : qsTr("Dark graphite and soft lavender."); color: theme.muted; font.pixelSize: theme.textXs; wrapMode: Text.WordWrap }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
             Row {
                 width: parent.width; height: 42; spacing: 10
@@ -879,8 +903,8 @@ Window {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.reducedMotion = !root.reducedMotion }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: "Reduce motion"; color: theme.foreground; font.pixelSize: theme.textSm }
-                    Text { text: "Subtler animations"; color: theme.muted; font.pixelSize: theme.textXs }
+                    Text { text: qsTr("Reduce motion"); color: theme.foreground; font.pixelSize: theme.textSm }
+                    Text { text: qsTr("Subtler animations"); color: theme.muted; font.pixelSize: theme.textXs }
                 }
             }
             Row {
@@ -902,13 +926,13 @@ Window {
                     }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: "Use GPU acceleration when supported"; color: theme.foreground; font.pixelSize: theme.textSm }
+                    Text { text: qsTr("Use GPU acceleration when supported"); color: theme.foreground; font.pixelSize: theme.textSm }
                     Text { text: backend.gpuName; color: theme.muted; font.pixelSize: theme.textXs; elide: Text.ElideRight; width: 250 }
                 }
             }
             ActionButton {
                 tokens: root.tokens
-                text: "Export diagnostics"
+                text: qsTr("Export diagnostics")
                 compact: true
                 onClicked: {
                     root.diagnosticsText = backend.diagnosticReport()
@@ -935,13 +959,13 @@ Window {
             spacing: 12
             Row {
                 width: parent.width
-                Text { text: "Export diagnostics"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: qsTr("Export diagnostics"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                 Item { width: Math.max(0, parent.width - 300); height: 1 }
                 ActionButton { tokens: root.tokens; text: "×"; compact: true; kind: "quiet"; onClicked: root.showDiagnostics = false }
             }
             Text {
                 width: parent.width
-                text: "This report lists detected versions and encoders, but no video paths. Check the GPU model before sharing."
+                text: qsTr("This report lists detected versions and encoders, but no video paths. Check the GPU model before sharing.")
                 color: theme.muted
                 font.pixelSize: theme.textXs
                 wrapMode: Text.WordWrap
@@ -962,7 +986,7 @@ Window {
             }
             ActionButton {
                 tokens: root.tokens
-                text: "Copy diagnostics"
+                text: qsTr("Copy diagnostics")
                 kind: "primary"
                 onClicked: backend.copyDiagnosticReport()
             }
@@ -982,14 +1006,14 @@ Window {
         Behavior on scale { NumberAnimation { duration: theme.spatialFast; easing.type: Easing.OutCubic } }
         Column {
             anchors.fill: parent; anchors.margins: 24; spacing: 12
-            Text { text: "Replace this file?"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold }
-            Text { width: parent.width; text: "The existing file is replaced only after the new export finishes and passes validation."; color: theme.muted; font.pixelSize: theme.textSm; wrapMode: Text.WordWrap }
+            Text { text: qsTr("Replace this file?"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold }
+            Text { width: parent.width; text: qsTr("The existing file is replaced only after the new export finishes and passes validation."); color: theme.muted; font.pixelSize: theme.textSm; wrapMode: Text.WordWrap }
             Text { width: parent.width; text: root.pendingOutput; color: theme.accent; font.pixelSize: theme.textXs; elide: Text.ElideMiddle }
             Item { width: 1; height: 1 }
             Row {
                 anchors.right: parent.right; spacing: 8
-                ActionButton { tokens: root.tokens; text: "Cancel"; kind: "quiet"; onClicked: root.showOverwrite = false }
-                ActionButton { tokens: root.tokens; text: "Replace"; kind: "primary"; onClicked: root.startExport(true) }
+                ActionButton { tokens: root.tokens; text: qsTr("Cancel"); kind: "quiet"; onClicked: root.showOverwrite = false }
+                ActionButton { tokens: root.tokens; text: qsTr("Replace"); kind: "primary"; onClicked: root.startExport(true) }
             }
         }
     }
@@ -1070,7 +1094,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
                         Text {
-                            text: "Exporting video"
+                            text: qsTr("Exporting video")
                             color: theme.foreground
                             font.pixelSize: theme.textXl
                             font.weight: Font.DemiBold
@@ -1099,7 +1123,7 @@ Window {
                     spacing: 12
                     Text {
                         width: Math.max(0, parent.width - renderCancelButton.implicitWidth - parent.spacing)
-                        text: backend.progress > 0 ? backend.progress + "%" : "Preparing…"
+                        text: backend.progress > 0 ? backend.progress + "%" : qsTr("Preparing…")
                         color: theme.foreground
                         font.pixelSize: theme.textSm
                         font.weight: Font.DemiBold
@@ -1110,7 +1134,7 @@ Window {
                         id: renderCancelButton
                         objectName: "renderCancelButton"
                         tokens: root.tokens
-                        text: "Cancel"
+                        text: qsTr("Cancel")
                         kind: "danger"
                         compact: true
                         anchors.verticalCenter: parent.verticalCenter

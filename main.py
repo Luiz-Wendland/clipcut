@@ -19,9 +19,11 @@ import configparser
 import atexit
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Property, QSettings, QThread, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Property, QSettings, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
+
+from localization import LanguagePreference, tr
 
 
 QUALITY = {
@@ -29,6 +31,7 @@ QUALITY = {
     "Maximum quality": {"h264": 15, "hevc": 17, "av1": 25, "nvenc": 16},
     "Compact": {"h264": 23, "hevc": 26, "av1": 36, "nvenc": 25},
 }
+EXPORT_CANCELED = "Export canceled"
 
 # Backends register themselves so the worker threads are always stopped,
 # even when the interpreter exits while analysis is still running.
@@ -193,9 +196,9 @@ class ExportTask(QObject):
 
             code, error = execute(self.command)
             if self.cancelled.is_set():
-                self.done.emit(False, "Export canceled")
+                self.done.emit(False, EXPORT_CANCELED)
             elif code:
-                self.done.emit(False, error.strip()[-2500:] or f"FFmpeg exited with code {code}")
+                self.done.emit(False, error.strip()[-2500:] or tr("FFmpeg exited with code {code}", code=code))
             else:
                 check = capture(["ffprobe", "-v", "error", "-count_packets",
                                  "-show_entries", "stream=codec_type,nb_read_packets",
@@ -209,7 +212,7 @@ class ExportTask(QObject):
                 if check.returncode or not has_video:
                     raise RuntimeError(check.stderr.strip() or "The exported file does not contain valid video")
                 if self.cancelled.is_set():
-                    self.done.emit(False, "Export canceled")
+                    self.done.emit(False, EXPORT_CANCELED)
                     return
                 os.replace(self.temp_path, self.output_path)
                 self.progress.emit(100)
@@ -262,6 +265,7 @@ class ClipBackend(QObject):
     waveformChanged = Signal()
     exportQueueChanged = Signal()
     exportDone = Signal(bool, str)
+    languageModeChanged = Signal()
 
     def __init__(self):
         super().__init__()
@@ -283,10 +287,13 @@ class ClipBackend(QObject):
         self._busy = False
         self._exporting = False
         self._status = "Open a video or drop it here"
+        self._status_values = {}
         self._progress = 0
         self._gpu_devices = self._detect_gpu_devices()
         self._palette = self._read_palette()
         self._settings = QSettings(QSettings.IniFormat, QSettings.UserScope, "ClipCut", "ClipCut")
+        self._language = LanguagePreference(self._settings, self)
+        self._language.changed.connect(self._language_changed)
         saved_directory = self._settings.value("export/lastDirectory", "", type=str)
         self._last_export_directory = saved_directory if saved_directory and os.path.isdir(saved_directory) else str(Path.home())
         self._prefer_gpu = self._settings.value("encoding/preferGpu", True, type=bool)
@@ -640,7 +647,23 @@ class ClipBackend(QObject):
 
     @Property(str, notify=statusChanged)
     def status(self):
-        return self._status
+        return tr(self._status, **self._status_values)
+
+    @Property(str, notify=languageModeChanged)
+    def languageMode(self):
+        return self._language.mode
+
+    @Slot(str)
+    def setLanguageMode(self, mode):
+        self._language.set_mode(mode)
+
+    def attach_translations(self, engine):
+        self._language.attach(engine)
+
+    def _language_changed(self):
+        self.languageModeChanged.emit()
+        self.statusChanged.emit()
+        self.gpuChanged.emit()
 
     @Property(int, notify=progressChanged)
     def progress(self):
@@ -668,7 +691,7 @@ class ClipBackend(QObject):
     @Property(str, notify=gpuChanged)
     def gpuName(self):
         if not self._gpu_name:
-            return "No GPU detected"
+            return tr("No GPU detected")
         apis = []
         codecs = []
         for codec, label in (("h264", "H.264"), ("hevc", "HEVC"), ("av1", "AV1")):
@@ -678,7 +701,7 @@ class ClipBackend(QObject):
                     apis.append(selected["api"])
                 codecs.append(label)
         if not apis:
-            return f"{self._gpu_name} · hardware encoder unavailable in FFmpeg"
+            return tr("{gpu} · hardware encoder unavailable in FFmpeg", gpu=self._gpu_name)
         api_text = " / ".join(self._gpu_api_label(api) for api in apis)
         return f"{self._gpu_name} · {api_text} · {', '.join(codecs)}"
 
@@ -703,7 +726,7 @@ class ClipBackend(QObject):
     @Slot(result=str)
     def diagnosticReport(self):
         ffmpeg = shutil.which("ffmpeg")
-        version = "unavailable"
+        version = tr("unavailable")
         if ffmpeg:
             try:
                 result = capture([ffmpeg, "-hide_banner", "-version"], 5)
@@ -712,23 +735,23 @@ class ClipBackend(QObject):
             except (OSError, subprocess.SubprocessError):
                 pass
         lines = [
-            "ClipCut — export diagnostics",
-            f"Sistema: {platform.system()} ({sys.platform})",
+            tr("ClipCut — export diagnostics"),
+            tr("System: {system} ({platform})", system=platform.system(), platform=sys.platform),
             f"Python: {platform.python_version()}",
             f"FFmpeg: {version}",
             "",
-            "Available encoders:",
+            tr("Available encoders:"),
         ]
         for codec, label in (("h264", "H.264"), ("hevc", "HEVC"), ("av1", "AV1")):
             cpu_encoder = {"h264": "libx264", "hevc": "libx265", "av1": "libsvtav1"}[codec]
             hardware = self._hardware_encoder_for(codec)
-            cpu = cpu_encoder if cpu_encoder in self._encoders else "unavailable"
+            cpu = cpu_encoder if cpu_encoder in self._encoders else tr("unavailable")
             if hardware:
                 device = hardware["device"].get("name", "GPU")
                 lines.append(f"- {label}: {hardware['encoder']} ({device}); CPU: {cpu}")
             else:
-                lines.append(f"- {label}: CPU {cpu}; GPU: unavailable")
-        lines.extend(("", "This report does not include media file paths."))
+                lines.append(f"- {label}: CPU {cpu}; GPU: {tr('unavailable')}")
+        lines.extend(("", tr("This report does not include media file paths.")))
         return "\n".join(lines)
 
     @Slot()
@@ -880,7 +903,7 @@ class ClipBackend(QObject):
             self.waveformChanged.emit()
             self._set_busy(False)
             self._set_status("Could not open the video")
-            self.exportDone.emit(False, error)
+            self.exportDone.emit(False, tr(error))
             return
         self._duration = data["duration"]
         self._width, self._height = data["width"], data["height"]
@@ -943,7 +966,7 @@ class ClipBackend(QObject):
             return
         if error:
             self._thumbnail_status = "error"
-            self._set_status(f"Timeline unavailable: {error[:180]}")
+            self._set_status("Timeline unavailable: {error}", error=tr(error)[:180])
         else:
             self._thumbnails = result
             self._thumbnail_status = "ready"
@@ -961,7 +984,7 @@ class ClipBackend(QObject):
             self._waveform_status = "error"
             self.waveformChanged.emit()
             # Keep the failure visible without hiding successfully generated thumbnails.
-            self._set_status(f"Ready to trim · waveform unavailable: {error[:120]}")
+            self._set_status("Ready to trim · waveform unavailable: {error}", error=tr(error)[:120])
             return
         self._waveform = result
         self._waveform_status = "ready"
@@ -1162,7 +1185,7 @@ class ClipBackend(QObject):
         if not encoder:
             raise ValueError("Unknown video codec.")
         if codec != "copy" and encoder not in self._encoders:
-            raise ValueError(f"The {encoder} encoder is not available in this FFmpeg installation.")
+            raise ValueError(tr("The {encoder} encoder is not available in this FFmpeg installation.", encoder=encoder))
 
         command = ["ffmpeg", "-hide_banner", "-y"]
         if api == "vaapi":
@@ -1277,12 +1300,12 @@ class ClipBackend(QObject):
                    quality: str, use_gpu: bool, overwrite: bool = False,
                    target_size_mb: float = 0.0, include_audio: bool = True):
         if self._shutting_down or self._exporting or self._queue_running:
-            self.exportDone.emit(False, "Wait for the current export to finish.")
+            self.exportDone.emit(False, tr("Wait for the current export to finish."))
             return
         job, error = self._prepare_export_job(output, codec, ratio, custom_ratio, quality,
                                               use_gpu, overwrite, target_size_mb, include_audio)
         if error:
-            self.exportDone.emit(False, error)
+            self.exportDone.emit(False, tr(error))
             return
         self._launch_export_job(job)
 
@@ -1292,18 +1315,18 @@ class ClipBackend(QObject):
         job, error = self._prepare_export_job(output, codec, ratio, custom_ratio, quality,
                                               use_gpu, False, target_size_mb, include_audio)
         if error:
-            self.exportDone.emit(False, error)
+            self.exportDone.emit(False, tr(error))
             return False
         output_key = os.path.normcase(os.path.realpath(job["output"]))
         if any(os.path.normcase(os.path.realpath(queued["output"])) == output_key
                for queued in self._export_queue):
-            self.exportDone.emit(False, "This output path is already queued.")
+            self.exportDone.emit(False, tr("This output path is already queued."))
             return False
         job.update(id=self._next_queue_id, status="queued")
         self._next_queue_id += 1
         self._export_queue.append(job)
         self.exportQueueChanged.emit()
-        self.exportDone.emit(True, f"{job['name']} added to the queue.")
+        self.exportDone.emit(True, tr("{name} added to the queue.", name=job["name"]))
         return True
 
     @Slot(int)
@@ -1343,7 +1366,7 @@ class ClipBackend(QObject):
             job["status"] = "failed"
             job["error"] = "The output path was created after this job was queued."
             self.exportQueueChanged.emit()
-            self.exportDone.emit(False, f"{job['name']}: output already exists; job skipped.")
+            self.exportDone.emit(False, tr("{name}: output already exists; job skipped.", name=job["name"]))
             QTimer.singleShot(0, self._start_next_queued_export)
             return
         job["status"] = "exporting"
@@ -1361,7 +1384,11 @@ class ClipBackend(QObject):
         self._set_exporting(True)
         self._progress = 0
         self.progressChanged.emit()
-        self._set_status(f"Exportando {job['name']} com {job['encoder']}…")
+        encoder = job["encoder"]
+        if encoder == "stream copy (no re-encoding)":
+            self._set_status("Exporting {name} with stream copy…", name=job["name"])
+        else:
+            self._set_status("Exporting {name} with {encoder}…", name=job["name"], encoder=encoder)
         thread = QThread()
         task = ExportTask(command, job["duration"], temp_path, output)
         task.moveToThread(thread)
@@ -1383,14 +1410,14 @@ class ClipBackend(QObject):
             return
         if self._active_queue_job:
             self._active_queue_job["status"] = "done" if success else (
-                "cancelled" if "cancelada" in message.lower() else "failed")
+                "cancelled" if message == EXPORT_CANCELED else "failed")
             self._active_queue_job["result"] = message
             self.exportQueueChanged.emit()
         self._set_status(message)
         if success:
             self._progress = 100
             self.progressChanged.emit()
-        self.exportDone.emit(success, message)
+        self.exportDone.emit(success, tr(message))
 
     @Slot()
     def _export_thread_finished(self):
@@ -1434,6 +1461,7 @@ class ClipBackend(QObject):
         if self._shutting_down:
             return
         self._shutting_down = True
+        self._language.detach()
         self._generation += 1
         self._preview_id += 1
         for task in tuple(self._tasks.values()):
@@ -1462,26 +1490,65 @@ class ClipBackend(QObject):
             self._exporting = value
             self.exportingChanged.emit()
 
-    def _set_status(self, value):
+    def _set_status(self, value, **values):
         self._status = value
+        self._status_values = values
         self.statusChanged.emit()
 
 
-def main():
-    # Let the desktop's XDG portal choose the native dialog backend (KDE, GTK, etc.).
-    # Respect an explicit platform-theme choice supplied by the user or launcher.
-    if sys.platform.startswith("linux"):
-        os.environ.setdefault("QT_QPA_PLATFORMTHEME", "xdgdesktopportal")
-    app = QGuiApplication(sys.argv)
-    app.setApplicationName("ClipCut")
-    app.setWindowIcon(QIcon(str(Path(__file__).with_name("assets") / "branding" / "clipcut-split-timeline-smooth.svg")))
+def load_ui(app):
     engine = QQmlApplicationEngine()
     backend = ClipBackend()
     backend.setParent(app)
+    backend.attach_translations(engine)
     engine.rootContext().setContextProperty("backend", backend)
     engine.warnings.connect(lambda warnings: [print(w.toString(), file=sys.stderr) for w in warnings])
     qml = Path(__file__).with_name("Main.qml")
     engine.load(QUrl.fromLocalFile(str(qml)))
+    return engine, backend
+
+
+def smoke_test(app):
+    """Validate the shipped QML and both locales without touching user settings."""
+    with tempfile.TemporaryDirectory(prefix="clipcut-smoke-") as settings_dir:
+        QSettings.setPath(QSettings.IniFormat, QSettings.UserScope, settings_dir)
+        engine, backend = load_ui(app)
+        try:
+            if not engine.rootObjects():
+                return 1
+            root = engine.rootObjects()[0]
+            selector = root.findChild(QObject, "languageSelector")
+            if selector is None:
+                return 1
+            for mode, label, translated in (
+                ("pt-BR", "Português (Brasil)", "Abrir vídeo"),
+                ("en", "English", "Open video"),
+            ):
+                backend.setLanguageMode(mode)
+                app.processEvents()
+                if (selector.property("currentText") != label
+                        or QCoreApplication.translate("Main", "Open video") != translated):
+                    return 1
+            return 0
+        finally:
+            backend.shutdown()
+
+
+def main():
+    checking = sys.argv[1:] == ["--smoke-test"]
+    if checking:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        os.environ.setdefault("QT_QUICK_BACKEND", "software")
+    # Let the desktop's XDG portal choose the native dialog backend (KDE, GTK, etc.).
+    # Respect an explicit platform-theme choice supplied by the user or launcher.
+    elif sys.platform.startswith("linux"):
+        os.environ.setdefault("QT_QPA_PLATFORMTHEME", "xdgdesktopportal")
+    app = QGuiApplication(sys.argv[:1] if checking else sys.argv)
+    app.setApplicationName("ClipCut")
+    app.setWindowIcon(QIcon(str(Path(__file__).with_name("assets") / "branding" / "clipcut-split-timeline-smooth.svg")))
+    if checking:
+        return smoke_test(app)
+    engine, backend = load_ui(app)
     if not engine.rootObjects():
         return 1
     video_argument = next((argument for argument in sys.argv[1:]

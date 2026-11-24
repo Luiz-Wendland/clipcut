@@ -133,12 +133,12 @@ Rectangle {
             Row {
                 spacing: root.tokens.space2
                 Text {
-                    text: "IN"; color: root.tokens.muted; font.pixelSize: root.tokens.textSm
+                    text: qsTr("IN"); color: root.tokens.muted; font.pixelSize: root.tokens.textSm
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.NoButton
-                        Controls.ToolTip.text: "Set in point at current frame · I"
+                        Controls.ToolTip.text: qsTr("Set in point at current frame · I")
                         Controls.ToolTip.visible: containsMouse
                         Controls.ToolTip.delay: 600
                     }
@@ -159,12 +159,12 @@ Rectangle {
             Row {
                 spacing: root.tokens.space2
                 Text {
-                    text: "OUT"; color: root.tokens.muted; font.pixelSize: root.tokens.textSm
+                    text: qsTr("OUT"); color: root.tokens.muted; font.pixelSize: root.tokens.textSm
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.NoButton
-                        Controls.ToolTip.text: "Set out point at current frame · O"
+                        Controls.ToolTip.text: qsTr("Set out point at current frame · O")
                         Controls.ToolTip.visible: containsMouse
                         Controls.ToolTip.delay: 600
                     }
@@ -185,7 +185,7 @@ Rectangle {
             Item { Layout.fillWidth: true; height: 1 }
             Column {
                 spacing: 0
-                Text { text: "Duration"; color: root.tokens.muted; font.pixelSize: root.tokens.textSm }
+                Text { text: qsTr("Duration"); color: root.tokens.muted; font.pixelSize: root.tokens.textSm }
                 Text {
                     text: root.timecode(root.clipBackend.clipEnd - root.clipBackend.clipStart)
                     color: root.tokens.accent
@@ -199,18 +199,18 @@ Rectangle {
                 Layout.leftMargin: 8
                 ActionButton {
                     tokens: root.tokens; text: "−"; compact: true; enabled: root.viewZoom > 1
-                    Controls.ToolTip.text: "Zoom out"
+                    Controls.ToolTip.text: qsTr("Zoom out")
                     onClicked: root.zoomAt(track.width / 2, 0.8)
                 }
                 ActionButton {
                     tokens: root.tokens; text: root.viewZoom.toFixed(1) + "×"; compact: true
-                    Controls.ToolTip.text: "Fit full duration"
+                    Controls.ToolTip.text: qsTr("Fit full duration")
                     onClicked: { root.viewZoom = 1; root.viewStart = 0 }
                 }
                 ActionButton {
                     objectName: "timelineZoomIn"
                     tokens: root.tokens; text: "+"; compact: true; enabled: root.viewZoom < root.maxZoom
-                    Controls.ToolTip.text: "Zoom in (up to 4×)"
+                    Controls.ToolTip.text: qsTr("Zoom in (up to 4×)")
                     onClicked: root.zoomAt(track.width / 2, 1.25)
                 }
             }
@@ -230,7 +230,7 @@ Rectangle {
                     MouseArea { anchors.fill: parent; enabled: root.clipBackend.hasVideo; cursorShape: Qt.PointingHandCursor; onClicked: root.playSelectionToggled(!root.playSelection) }
                 }
                 Text {
-                    text: "Play selection only"
+                    text: qsTr("Play selection only")
                     color: root.clipBackend.hasVideo ? root.tokens.foreground : root.tokens.muted
                     font.pixelSize: root.tokens.textSm
                     anchors.verticalCenter: parent.verticalCenter
@@ -289,11 +289,11 @@ Rectangle {
                 z: 3
                 horizontalAlignment: Text.AlignHCenter
                 text: root.clipBackend.timelineImageStatus === "error"
-                      ? "Thumbnails unavailable"
+                      ? qsTr("Thumbnails unavailable")
                       : root.thumbnailLoadError()
-                        ? "Could not load thumbnails"
+                        ? qsTr("Could not load thumbnails")
                       : root.clipBackend.timelineImageStatus === "ready"
-                        ? "Loading thumbnails…" : "Generating thumbnails…"
+                        ? qsTr("Loading thumbnails…") : qsTr("Generating thumbnails…")
                 color: root.tokens.muted
                 font.pixelSize: root.tokens.textXs
                 visible: root.clipBackend.hasVideo &&
@@ -334,13 +334,13 @@ Rectangle {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 text: !root.clipBackend.hasAudio
-                      ? "No audio track in this video"
+                      ? qsTr("No audio track in this video")
                       : root.clipBackend.waveformStatus === "error"
-                      ? "Audio waveform unavailable"
+                      ? qsTr("Audio waveform unavailable")
                       : waveformImage.loadState === "error"
-                        ? "Could not load the waveform"
+                        ? qsTr("Could not load the waveform")
                       : root.clipBackend.waveformStatus === "ready"
-                        ? "Loading waveform…" : "Generating waveform…"
+                        ? qsTr("Loading waveform…") : qsTr("Generating waveform…")
                 color: root.tokens.muted
                 font.pixelSize: root.tokens.textXs
                 visible: root.clipBackend.hasVideo &&
@@ -483,7 +483,7 @@ Rectangle {
                 anchors.fill: parent
                 z: 3
                 hoverEnabled: true
-                Controls.ToolTip.text: "Drag to scrub · Ctrl+wheel: zoom · Shift+wheel: pan · double-click: fit"
+                Controls.ToolTip.text: qsTr("Drag to scrub · Ctrl+wheel: zoom · Shift+wheel: pan · double-click: fit")
                 Controls.ToolTip.visible: containsMouse && root.clipBackend.hasVideo
                 Controls.ToolTip.delay: 700
                 onPressed: function(mouse) {

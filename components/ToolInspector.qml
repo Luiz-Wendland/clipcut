@@ -25,10 +25,11 @@ Rectangle {
     function outputSummary() {
         if (!root.clipBackend.hasVideo) return ""
         const source = root.clipBackend.videoWidth + " × " + root.clipBackend.videoHeight
-        if (root.selectedCodec === "copy") return source + " · uncropped (stream copy)"
+        if (root.selectedCodec === "copy") return source + " · " + qsTr("uncropped (stream copy)")
         const size = root.clipBackend.cropSize
-        if (!size.cropped) return source + " · uncropped"
-        return source + " → " + size.width + " × " + size.height + " · " + root.selectedRatio
+        if (!size.cropped) return source + " · " + qsTr("uncropped")
+        const ratio = root.selectedRatio === "Custom" ? qsTr("Custom") : root.selectedRatio
+        return source + " → " + size.width + " × " + size.height + " · " + ratio
     }
 
     width: selectedTool === "Trim" ? 0 : Math.min(252, Math.max(220, parent.width * 0.26))
@@ -46,15 +47,15 @@ Rectangle {
 
         Column {
             spacing: 12
-            Text { text: "Crop"; color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
-            Text { text: "ASPECT RATIO"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+            Text { text: qsTr("Crop"); color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
+            Text { text: qsTr("ASPECT RATIO"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
             Flow {
                 width: parent.width; spacing: 6
                 Repeater {
                     model: ["Original", "4:3", "16:9", "21:9", "9:16", "1:1", "4:5", "Custom"]
                     delegate: ActionButton {
                         required property string modelData
-                        tokens: root.tokens; text: modelData; compact: true
+                        tokens: root.tokens; text: modelData === "Custom" ? qsTr("Custom") : modelData; compact: true
                         checked: root.selectedRatio === modelData
                         onClicked: root.ratioRequested(modelData)
                     }
@@ -64,7 +65,7 @@ Rectangle {
                 id: customRatioInput
                 width: parent.width; tokens: root.tokens
                 visible: root.selectedRatio === "Custom"
-                text: root.customRatioValue; placeholderText: "e.g. 3:2"
+                text: root.customRatioValue; placeholderText: qsTr("e.g. 3:2")
                 invalid: !root.customRatioValid
                 onEditingFinished: root.customRatioRequested(text)
             }
@@ -76,7 +77,7 @@ Rectangle {
                     if (!customRatioInput.activeFocus) customRatioInput.text = root.customRatioValue
                 }
             }
-            ActionButton { tokens: root.tokens; text: "Center crop"; symbol: "⊙"; enabled: root.clipBackend.hasVideo; onClicked: root.centerCropRequested() }
+            ActionButton { tokens: root.tokens; text: qsTr("Center crop"); symbol: "⊙"; enabled: root.clipBackend.hasVideo; onClicked: root.centerCropRequested() }
             Rectangle { width: parent.width; height: 1; color: root.tokens.outline }
             Text {
                 visible: root.clipBackend.hasVideo
@@ -88,7 +89,7 @@ Rectangle {
 
         Column {
             spacing: 13
-            Text { text: "Audio"; color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
+            Text { text: qsTr("Audio"); color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
             Rectangle { width: parent.width; height: 1; color: root.tokens.outline }
             Row {
                 width: parent.width; height: 42; spacing: 10
@@ -100,14 +101,14 @@ Rectangle {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.includeAudioToggled(!root.includeAudio) }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: "Include audio"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; font.weight: Font.Medium }
-                    Text { text: root.clipBackend.hasAudio ? "Stereo AAC · 192 kb/s" : "No audio track detected"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
+                    Text { text: qsTr("Include audio"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; font.weight: Font.Medium }
+                    Text { text: root.clipBackend.hasAudio ? qsTr("Stereo AAC · 192 kb/s") : qsTr("No audio track detected"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
                 }
             }
-            Text { text: "PREVIEW VOLUME"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+            Text { text: qsTr("PREVIEW VOLUME"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
             Row {
                 width: parent.width; spacing: 8
-                ActionButton { tokens: root.tokens; text: root.audioMuted ? "Unmute" : "Mute"; compact: true; kind: "quiet"; onClicked: root.audioMuteToggled(!root.audioMuted) }
+                ActionButton { tokens: root.tokens; text: root.audioMuted ? qsTr("Unmute") : qsTr("Mute"); compact: true; kind: "quiet"; onClicked: root.audioMuteToggled(!root.audioMuted) }
                 TonalSlider { id: volumeSlider; objectName: "volumeSlider"; tokens: root.tokens; width: Math.max(70, parent.width - 74); from: 0; to: 1; value: 0.8; anchors.verticalCenter: parent.verticalCenter }
             }
         }

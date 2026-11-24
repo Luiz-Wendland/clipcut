@@ -51,17 +51,25 @@ Rectangle {
     }
     function framingSummary() {
         if (!root.clipBackend.hasVideo) return ""
-        if (root.selectedCodec === "copy") return "uncropped (stream copy)"
+        if (root.selectedCodec === "copy") return qsTr("uncropped (stream copy)")
         const size = root.clipBackend.cropSize
-        if (!size.cropped) return "enquadramento original"
-        return "crop " + root.selectedRatio + " · " + size.width + " × " + size.height
+        if (!size.cropped) return qsTr("Original framing")
+        return qsTr("Crop %1 · %2 × %3").arg(root.ratioLabel(root.selectedRatio)).arg(size.width).arg(size.height)
+    }
+    function ratioLabel(ratio) {
+        return ratio === "Custom" ? qsTr("Custom") : ratio
+    }
+    function qualityLabel(quality) {
+        if (quality === "High quality") return qsTr("High quality")
+        if (quality === "Maximum quality") return qsTr("Maximum quality")
+        return qsTr("Compact")
     }
     function encoderSummary() {
-        if (root.selectedCodec === "copy") return "Stream copy"
+        if (root.selectedCodec === "copy") return qsTr("Stream copy")
         const codecName = ({ h264: "H.264", hevc: "HEVC", av1: "AV1" })[root.selectedCodec] || root.selectedCodec
         const gpuAvailable = root.clipBackend.hardwareEncoderAvailable(root.selectedCodec)
         if (root.clipBackend.preferGpu && !gpuAvailable)
-            return codecName + " · CPU (GPU unavailable)"
+            return codecName + " · " + qsTr("CPU (GPU unavailable)")
         const encoder = root.clipBackend.preferGpu
                 ? root.clipBackend.hardwareEncoderName(root.selectedCodec) : "CPU"
         return codecName + " · " + encoder
@@ -99,8 +107,8 @@ Rectangle {
         Row {
             width: parent.width; height: 44
             Column { spacing: 2
-                Text { text: "Export clip"; color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
-                Text { text: root.clipBackend.fileName || "Choose output settings"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: 280 }
+                Text { text: qsTr("Export clip"); color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
+                Text { text: root.clipBackend.fileName || qsTr("Choose output settings"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: 280 }
             }
             Item { width: Math.max(0, parent.width - 330); height: 1 }
             ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.closeRequested() }
@@ -116,16 +124,16 @@ Rectangle {
                 width: exportScroll.availableWidth
                 spacing: 14
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Folder and file name"
+                    width: parent.width; tokens: root.tokens; title: qsTr("Folder and file name")
                     detail: root.outputName + "." + root.outputFormat
                     expanded: true
                     Row {
                         width: parent.width; spacing: 6
                         LineEdit {
                             width: parent.width - browseButton.width - 6; tokens: root.tokens
-                            text: root.outputDirectory; placeholderText: "Choose a folder…"; readOnly: true
+                            text: root.outputDirectory; placeholderText: qsTr("Choose a folder…"); readOnly: true
                         }
-                        ActionButton { id: browseButton; tokens: root.tokens; text: "Browse…"; compact: true; onClicked: root.browseRequested() }
+                        ActionButton { id: browseButton; tokens: root.tokens; text: qsTr("Browse…"); compact: true; onClicked: root.browseRequested() }
                     }
                     LineEdit {
                         id: outputNameField
@@ -133,7 +141,7 @@ Rectangle {
                         width: parent.width
                         tokens: root.tokens
                         text: root.outputName
-                        placeholderText: "Clip name"
+                        placeholderText: qsTr("Clip name")
                         invalid: !root.outputNameValid
                         onEditingFinished: root.outputNameRequested(text)
                     }
@@ -147,14 +155,14 @@ Rectangle {
                 Disclosure {
                     width: parent.width
                     tokens: root.tokens
-                    title: "Video"
-                    detail: root.selectedCodec.toUpperCase() + " · " + (root.selectedCodec === "copy" ? "copy" : root.selectedQuality)
+                    title: qsTr("Video")
+                    detail: root.selectedCodec.toUpperCase() + " · " + (root.selectedCodec === "copy" ? qsTr("copy") : root.qualityLabel(root.selectedQuality))
                     expanded: true
-                    Text { text: "CODEC"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+                    Text { text: qsTr("CODEC"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
                     Flow {
                         width: parent.width; spacing: 6
                         Repeater {
-                            model: [{ id: "h264", name: "H.264" }, { id: "hevc", name: "HEVC" }, { id: "av1", name: "AV1" }, { id: "copy", name: "Stream copy" }]
+                            model: [{ id: "h264", name: "H.264" }, { id: "hevc", name: "HEVC" }, { id: "av1", name: "AV1" }, { id: "copy", name: qsTr("Stream copy") }]
                             delegate: ActionButton {
                                 required property var modelData
                                 tokens: root.tokens; text: modelData.name; compact: true
@@ -164,7 +172,7 @@ Rectangle {
                         }
                     }
                     Text {
-                        text: "ENCODER"
+                        text: qsTr("ENCODER")
                         visible: root.selectedCodec !== "copy"
                         color: root.tokens.muted
                         font.pixelSize: root.tokens.textXs
@@ -197,12 +205,12 @@ Rectangle {
                         width: parent.width
                         visible: root.selectedCodec !== "copy" &&
                                  !root.clipBackend.hardwareEncoderAvailable(root.selectedCodec)
-                        text: root.clipBackend.hardwareEncoderStatus(root.selectedCodec)
+                        text: qsTr(root.clipBackend.hardwareEncoderStatus(root.selectedCodec))
                         color: root.tokens.muted
                         font.pixelSize: root.tokens.textXs
                         wrapMode: Text.WordWrap
                     }
-                    Text { text: "QUALITY"; visible: root.selectedCodec !== "copy"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+                    Text { text: qsTr("QUALITY"); visible: root.selectedCodec !== "copy"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
                     Flow {
                         width: parent.width; spacing: 6; visible: root.selectedCodec !== "copy"
                         Repeater {
@@ -210,7 +218,7 @@ Rectangle {
                             delegate: ActionButton {
                                 required property string modelData
                                 tokens: root.tokens
-                                text: modelData === "High quality" ? "High" : modelData === "Maximum quality" ? "Maximum" : "Compact"
+                                text: modelData === "High quality" ? qsTr("High") : modelData === "Maximum quality" ? qsTr("Maximum") : qsTr("Compact")
                                 compact: true; checked: root.selectedQuality === modelData
                                 onClicked: root.qualityChanged(modelData)
                             }
@@ -218,14 +226,14 @@ Rectangle {
                     }
                     Text {
                         visible: root.selectedCodec === "copy"; width: parent.width
-                            text: "Copies the original video without re-encoding. Crop, quality, and target size do not apply. Trim points may snap to keyframes."
+                            text: qsTr("Copies the original video without re-encoding. Crop, quality, and target size do not apply. Trim points may snap to keyframes.")
                         color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap
                     }
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Crop"
-                    detail: root.selectedCodec === "copy" ? "not applicable" : root.selectedRatio
+                    width: parent.width; tokens: root.tokens; title: qsTr("Crop")
+                    detail: root.selectedCodec === "copy" ? qsTr("not applicable") : root.ratioLabel(root.selectedRatio)
                     expanded: false
                     Flow {
                         width: parent.width; spacing: 6
@@ -234,7 +242,7 @@ Rectangle {
                             model: ["Original", "4:3", "16:9", "21:9", "9:16", "1:1", "4:5", "Custom"]
                             delegate: ActionButton {
                                 required property string modelData
-                                tokens: root.tokens; text: modelData; compact: true
+                                tokens: root.tokens; text: root.ratioLabel(modelData); compact: true
                                 checked: root.selectedRatio === modelData
                                 onClicked: root.ratioChanged(modelData)
                             }
@@ -244,13 +252,13 @@ Rectangle {
                         id: customRatioInput
                         width: parent.width; tokens: root.tokens
                         visible: root.selectedRatio === "Custom" && root.selectedCodec !== "copy"
-                        text: root.customRatioValue; placeholderText: "Aspect ratio · e.g. 3:2"
+                        text: root.customRatioValue; placeholderText: qsTr("Aspect ratio · e.g. 3:2")
                         invalid: !root.customRatioValid
                         onEditingFinished: root.customRatioChanged(text)
                     }
                     Text {
                         width: parent.width; visible: root.selectedCodec === "copy"
-                        text: "Stream copy preserves the original dimensions, so cropping is disabled."
+                        text: qsTr("Stream copy preserves the original dimensions, so cropping is disabled.")
                         color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap
                     }
                     Connections {
@@ -262,9 +270,9 @@ Rectangle {
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Audio"
-                    detail: !root.includeAudio ? "Off" :
-                            root.clipBackend.hasAudio ? "AAC · 192 kb/s" : "No source audio"
+                    width: parent.width; tokens: root.tokens; title: qsTr("Audio")
+                    detail: !root.includeAudio ? qsTr("Off") :
+                            root.clipBackend.hasAudio ? "AAC · 192 kb/s" : qsTr("No source audio")
                     expanded: false
                     Row {
                         width: parent.width; height: 40; spacing: 9
@@ -276,15 +284,15 @@ Rectangle {
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.audioInclusionRequested(!root.includeAudio) }
                         }
                         Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: "Include audio track"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm }
-                            Text { text: root.clipBackend.hasAudio ? "Stereo AAC, 192 kb/s" : "This file has no audio"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
+                            Text { text: qsTr("Include audio track"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm }
+                            Text { text: root.clipBackend.hasAudio ? qsTr("Stereo AAC, 192 kb/s") : qsTr("This file has no audio"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
                         }
                     }
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Target size"
-                    detail: root.targetSizeEnabled ? "~" + root.targetSizeValue + " MB" : "Off"
+                    width: parent.width; tokens: root.tokens; title: qsTr("Target size")
+                    detail: root.targetSizeEnabled ? "~" + root.targetSizeValue + " MB" : qsTr("Off")
                     expanded: false; visible: root.selectedCodec !== "copy"
                     Row {
                         width: parent.width; height: 40; spacing: 9
@@ -295,16 +303,16 @@ Rectangle {
                             Rectangle { x: root.targetSizeEnabled ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.targetSizeEnabled ? root.tokens.accent : root.tokens.muted; Behavior on x { NumberAnimation { duration: root.tokens.effectFast } } }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.targetEnabledRequested(!root.targetSizeEnabled) }
                         }
-                        Text { text: "Estimated size"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: qsTr("Estimated size"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
                     }
-                    LineEdit { width: parent.width; tokens: root.tokens; visible: root.targetSizeEnabled; text: root.targetSizeValue; placeholderText: "Size in MB"; onEditingFinished: root.targetValueEdited(text) }
-                    Text { visible: root.targetSizeEnabled; width: parent.width; text: "Single-pass encoding; final size may vary."; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap }
+                    LineEdit { width: parent.width; tokens: root.tokens; visible: root.targetSizeEnabled; text: root.targetSizeValue; placeholderText: qsTr("Size in MB"); onEditingFinished: root.targetValueEdited(text) }
+                    Text { visible: root.targetSizeEnabled; width: parent.width; text: qsTr("Single-pass encoding; final size may vary."); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap }
                 }
 
                 Disclosure {
                     width: parent.width
                     tokens: root.tokens
-                    title: "Export queue"
+                    title: qsTr("Export queue")
                     detail: root.clipBackend.queuedExportCount + " pendente(s)"
                     expanded: false
                     visible: root.clipBackend.queuedExports.length > 0
@@ -318,8 +326,8 @@ Rectangle {
                             Text {
                                 width: parent.width - 104
                                 text: modelData.name + " · " + ({
-                                    queued: "Queued", exporting: "Exporting", done: "Completed",
-                                    failed: "Failed", cancelled: "Canceled"
+                                    queued: qsTr("Queued"), exporting: qsTr("Exporting"), done: qsTr("Completed"),
+                                    failed: qsTr("Failed"), cancelled: qsTr("Canceled")
                                 })[modelData.status]
                                 color: root.tokens.foreground
                                 font.pixelSize: root.tokens.textXs
@@ -328,7 +336,7 @@ Rectangle {
                             }
                             ActionButton {
                                 tokens: root.tokens
-                                text: "Remove"
+                                text: qsTr("Remove")
                                 compact: true
                                 visible: modelData.status === "queued"
                                 onClicked: root.removeQueueRequested(modelData.id)
@@ -340,7 +348,7 @@ Rectangle {
                         spacing: 6
                         ActionButton {
                             tokens: root.tokens
-                            text: root.clipBackend.exportQueueRunning ? "Processing queue…" : "Run queue"
+                            text: root.clipBackend.exportQueueRunning ? qsTr("Processing queue…") : qsTr("Run queue")
                             compact: true
                             kind: "primary"
                             enabled: root.clipBackend.queuedExportCount > 0 && !root.clipBackend.exportQueueRunning
@@ -348,7 +356,7 @@ Rectangle {
                         }
                         ActionButton {
                             tokens: root.tokens
-                            text: "Clear finished jobs"
+                            text: qsTr("Clear finished jobs")
                             compact: true
                             enabled: root.clipBackend.queuedExports.length > 0
                             onClicked: root.clearQueueRequested()
@@ -391,7 +399,7 @@ Rectangle {
                     width: parent.width
                     text: root.encoderSummary() + " · " + Math.round(root.clipBackend.fps) + " fps · " +
                           root.outputFormat.toUpperCase() +
-                          (root.includeAudio && root.clipBackend.hasAudio ? " · AAC" : " · no audio")
+                          " · " + (root.includeAudio && root.clipBackend.hasAudio ? "AAC" : qsTr("no audio"))
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
                     elide: Text.ElideRight
@@ -406,8 +414,8 @@ Rectangle {
                 }
                 Text {
                     text: root.targetSizeEnabled && root.selectedCodec !== "copy"
-                          ? "Target size aproximado: " + root.targetSizeValue + " MB"
-                          : "Final size depends on the content"
+                          ? qsTr("Approximate target size: %1 MB").arg(root.targetSizeValue)
+                          : qsTr("Final size depends on the content")
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
                     elide: Text.ElideRight
@@ -419,7 +427,7 @@ Rectangle {
             width: parent.width; height: 40; spacing: 6
             ActionButton {
                 tokens: root.tokens
-                text: "Add to queue"
+                text: qsTr("Add to queue")
                 compact: true
                 kind: "tonal"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
@@ -428,7 +436,7 @@ Rectangle {
             }
             ActionButton {
                 tokens: root.tokens
-                text: root.clipBackend.busy ? "Canceling…" : "Export video"
+                text: root.clipBackend.busy ? qsTr("Canceling…") : qsTr("Export video")
                 symbol: "↗"; kind: "primary"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
                 width: (parent.width - parent.spacing) / 2
