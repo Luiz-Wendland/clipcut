@@ -2,6 +2,8 @@
 
 PT_BR = {
     "+ frame": "+ quadro",
+    "%1 queued": "%1 na fila",
+    "1 queued": "1 na fila",
     "APPEARANCE": "APARÊNCIA",
     "ASPECT RATIO": "PROPORÇÃO",
     "Add to queue": "Adicionar à fila",

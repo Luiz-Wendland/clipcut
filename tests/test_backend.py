@@ -571,6 +571,44 @@ class BackendTests(unittest.TestCase):
             self.assertTrue(QImageReader(QUrl(self.backend._thumbnails[0]["url"]).toLocalFile()).canRead())
             self.wait_for_tasks_to_finish()
 
+    def test_reduced_motion_preference_persists(self):
+        self.assertFalse(self.backend.reducedMotion)
+        self.backend.setReducedMotion(True)
+        self.assertTrue(self.backend.reducedMotion)
+        reloaded = ClipBackend()
+        try:
+            self.assertTrue(reloaded.reducedMotion)
+        finally:
+            reloaded.shutdown()
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"),
+                         "FFmpeg and ffprobe are required for this integration test")
+    def test_preview_request_cleans_previous_frame(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "sample.mp4")
+            subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=12:duration=2",
+                "-c:v", "mpeg4", "-pix_fmt", "yuv420p", source,
+            ], check=True, capture_output=True, timeout=20)
+            self.backend.loadFile(source)
+            deadline = time.monotonic() + 20
+            while self.backend._thumbnail_status != "ready" and time.monotonic() < deadline:
+                APP.processEvents()
+                time.sleep(.01)
+            self.wait_for_tasks_to_finish()
+
+            first_path = self.backend._last_preview_path
+            self.assertTrue(first_path and os.path.isfile(first_path))
+
+            self.backend.requestPreview(1.0)
+            self.wait_for_tasks_to_finish()
+            APP.processEvents()
+            second_path = self.backend._last_preview_path
+            self.assertTrue(second_path and os.path.isfile(second_path))
+            self.assertNotEqual(first_path, second_path)
+            self.assertFalse(os.path.exists(first_path))
+
 
 if __name__ == "__main__":
     unittest.main()

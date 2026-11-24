@@ -67,6 +67,7 @@ Rectangle {
                 visible: root.selectedRatio === "Custom"
                 text: root.customRatioValue; placeholderText: qsTr("e.g. 3:2")
                 invalid: !root.customRatioValid
+                onTextEdited: text => root.customRatioRequested(text)
                 onEditingFinished: root.customRatioRequested(text)
             }
             // Typing in the field breaks the text binding, so mirror the shared

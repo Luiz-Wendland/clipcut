@@ -18,7 +18,7 @@ Window {
     title: "ClipCut"
     color: theme.canvas
 
-    property bool reducedMotion: false
+    property bool reducedMotion: backend.reducedMotion
     property string activeTool: "Trim"
     property string selectedCodec: "h264"
     property string selectedQuality: "High quality"
@@ -143,8 +143,7 @@ Window {
     }
     function textEntryHasFocus() {
         const item = activeFocusItem
-        return item && (item instanceof TextInput || item instanceof TextEdit ||
-                        item instanceof Controls.Control || item instanceof ActionButton)
+        return item && (item instanceof TextInput || item instanceof TextEdit)
     }
     function editorShortcutsAllowed() {
         return backend.hasVideo && !backend.busy && !root.showExport && !root.showSettings && !root.showDiagnostics &&
@@ -355,7 +354,7 @@ Window {
         border.width: 1
         Component.onCompleted: forceActiveFocus()
         Keys.onSpacePressed: function(event) {
-            if (root.showExport || root.showSettings || root.showOverwrite ||
+            if (root.showExport || root.showSettings || root.showDiagnostics || root.showOverwrite ||
                     openDialog.visible || folderDialog.visible || root.textEntryHasFocus())
                 return
             root.togglePlayback()
@@ -368,7 +367,7 @@ Window {
             spacing: 0
 
             // Unified top rail: actions live in one softly connected surface.
-            Row {
+            RowLayout {
                 id: toolbar
                 width: parent.width
                 height: theme.toolbarHeight
@@ -377,15 +376,17 @@ Window {
                 VectorImage {
                     objectName: "clipcutBrandIcon"
                     width: 40; height: 40
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    Layout.alignment: Qt.AlignVCenter
                     source: Qt.resolvedUrl("assets/branding/clipcut-split-timeline-smooth.svg")
                     fillMode: VectorImage.PreserveAspectFit
                     preferredRendererType: VectorImage.CurveRenderer
                 }
                 Column {
                     id: projectColumn
-                    width: Math.min(280, Math.max(150, parent.width * 0.24))
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.preferredWidth: Math.min(280, Math.max(150, toolbar.width * 0.24))
+                    Layout.alignment: Qt.AlignVCenter
                     spacing: 2
                     Text { text: "ClipCut"; color: theme.foreground; font.pixelSize: theme.textMd; font.weight: Font.DemiBold }
                     Text {
@@ -397,16 +398,17 @@ Window {
                     }
                 }
                 Item {
-                    width: Math.max(0, parent.width - 48 - 38 - projectColumn.width - statusPill.width - openVideoButton.width - 128 - 108)
+                    Layout.fillWidth: true
                     height: 1
                 }
                 Rectangle {
                     id: statusPill
-                    width: root.notice || backend.filePath || backend.busy ? Math.min(200, Math.max(64, parent.width * 0.16)) : 0
-                    height: 30
+                    Layout.preferredWidth: root.notice || backend.filePath || backend.busy ? Math.min(220, Math.max(80, toolbar.width * 0.18)) : 0
+                    Layout.preferredHeight: 30
+                    visible: Layout.preferredWidth > 0
                     radius: theme.radiusFull
                     color: theme.surfaceLow
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
                     Row {
                         anchors.centerIn: parent
                         spacing: 7
@@ -431,9 +433,8 @@ Window {
                     tokens: root.tokens
                     text: qsTr("Open")
                     symbol: "+"
-                    width: backend.filePath || backend.busy ? implicitWidth : 0
-                    visible: width > 0
-                    anchors.verticalCenter: parent.verticalCenter
+                    visible: backend.filePath || backend.busy
+                    Layout.alignment: Qt.AlignVCenter
                     onClicked: openDialog.open()
                 }
                 ActionButton {
@@ -442,8 +443,7 @@ Window {
                     symbol: "⚙"
                     kind: "quiet"
                     compact: true
-                    implicitWidth: 120
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
                     onClicked: { root.showSettings = !root.showSettings; root.showExport = false }
                 }
                 ActionButton {
@@ -452,7 +452,7 @@ Window {
                     symbol: "↗"
                     kind: "primary"
                     enabled: backend.hasVideo && !backend.busy
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
                     onClicked: { root.showExport = true; root.showSettings = false }
                 }
             }
@@ -667,14 +667,14 @@ Window {
                         color: "#e21b1d24"
                         border.color: "#30ffffff"
                         opacity: backend.hasVideo ? 1 : 0.72
-                        Row {
+                        RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
                             spacing: 6
                             ActionButton {
                                 tokens: root.tokens; text: qsTr("− frame"); compact: true; kind: "quiet"
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.alignment: Qt.AlignVCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 - (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
                             }
@@ -683,7 +683,7 @@ Window {
                                 text: root.isPlaying ? qsTr("Pause") : qsTr("Play")
                                 symbol: root.isPlaying ? "Ⅱ" : "▶"
                                 kind: "tonal"
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.alignment: Qt.AlignVCenter
                                 enabled: backend.hasVideo
                                 onClicked: {
                                     if (root.isPlaying) player.pause()
@@ -696,17 +696,17 @@ Window {
                             }
                             ActionButton {
                                 tokens: root.tokens; text: qsTr("+ frame"); compact: true; kind: "quiet"
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.alignment: Qt.AlignVCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 + (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
                             }
-                            Item { width: Math.max(0, parent.width - 500); height: 1 }
+                            Item { Layout.fillWidth: true; height: 1 }
                             Text {
                                 text: root.formatTime(player.position / 1000) + " / " + root.formatTime(backend.duration)
                                 color: theme.foreground
                                 font.pixelSize: theme.textSm
-                                 font.family: "monospace"
-                                anchors.verticalCenter: parent.verticalCenter
+                                font.family: "monospace"
+                                Layout.alignment: Qt.AlignVCenter
                             }
                         }
                     }
@@ -971,7 +971,7 @@ Window {
                 width: parent.width; height: 42; spacing: 10
                 Rectangle { width: 38; height: 24; radius: theme.radiusFull; color: root.reducedMotion ? theme.accentSoft : theme.surfaceHigh; anchors.verticalCenter: parent.verticalCenter
                     Rectangle { x: root.reducedMotion ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.reducedMotion ? theme.accent : theme.muted; Behavior on x { NumberAnimation { duration: theme.effectFast } } }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.reducedMotion = !root.reducedMotion }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: backend.setReducedMotion(!backend.reducedMotion) }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
                     Text { text: qsTr("Reduce motion"); color: theme.foreground; font.pixelSize: theme.textSm }
@@ -1029,11 +1029,11 @@ Window {
             anchors.fill: parent
             anchors.margins: 20
             spacing: 12
-            Row {
+            RowLayout {
                 width: parent.width
-                Text { text: qsTr("Export diagnostics"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                Item { width: Math.max(0, parent.width - 300); height: 1 }
-                ActionButton { tokens: root.tokens; text: "×"; compact: true; kind: "quiet"; onClicked: root.showDiagnostics = false }
+                spacing: 8
+                Text { text: qsTr("Export diagnostics"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; elide: Text.ElideRight }
+                ActionButton { tokens: root.tokens; text: "×"; compact: true; kind: "quiet"; Layout.alignment: Qt.AlignVCenter; onClicked: root.showDiagnostics = false }
             }
             Text {
                 width: parent.width

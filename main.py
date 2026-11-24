@@ -199,7 +199,8 @@ class ExportTask(QObject):
             elif code:
                 self.done.emit(False, error.strip()[-2500:] or tr("FFmpeg exited with code {code}", code=code))
             else:
-                check = capture(["ffprobe", "-v", "error", "-count_packets",
+                check = capture(["ffprobe", "-v", "error", "-read_intervals", "%+#5",
+                                 "-count_packets",
                                  "-show_entries", "stream=codec_type,nb_read_packets",
                                  "-of", "json", self.temp_path], timeout=30)
                 try:
@@ -264,6 +265,7 @@ class ClipBackend(QObject):
     exportQueueChanged = Signal()
     exportDone = Signal(bool, str)
     languageModeChanged = Signal()
+    reducedMotionChanged = Signal()
 
     def __init__(self):
         super().__init__()
@@ -294,9 +296,11 @@ class ClipBackend(QObject):
         saved_directory = self._settings.value("export/lastDirectory", "", type=str)
         self._last_export_directory = saved_directory if saved_directory and os.path.isdir(saved_directory) else str(Path.home())
         self._prefer_gpu = self._settings.value("encoding/preferGpu", True, type=bool)
+        self._reduced_motion = self._settings.value("ui/reducedMotion", False, type=bool)
         self._tmp = tempfile.TemporaryDirectory(prefix="clipcut-")
         self._generation = 0
         self._preview_id = 0
+        self._last_preview_path = ""
         self._tasks: dict[QThread, Task] = {}
         self._export_thread = None
         self._export_task = None
@@ -449,9 +453,6 @@ class ClipBackend(QObject):
                     if len(fields := line.split()) >= 3 and fields[0].startswith("V") and fields[1] != "="}
         except (OSError, subprocess.SubprocessError):
             return set()
-
-    def _property(name, signal):
-        return Property(str, lambda self: getattr(self, name), notify=signal)
 
     @Property(str, notify=fileChanged)
     def fileName(self):
@@ -619,6 +620,20 @@ class ClipBackend(QObject):
         self.statusChanged.emit()
         self.gpuChanged.emit()
 
+    @Property(bool, notify=reducedMotionChanged)
+    def reducedMotion(self):
+        return self._reduced_motion
+
+    @Slot(bool)
+    def setReducedMotion(self, value: bool):
+        value = bool(value)
+        if self._reduced_motion == value:
+            return
+        self._reduced_motion = value
+        self._settings.setValue("ui/reducedMotion", value)
+        self._settings.sync()
+        self.reducedMotionChanged.emit()
+
     @Property(int, notify=progressChanged)
     def progress(self):
         return self._progress
@@ -674,8 +689,8 @@ class ClipBackend(QObject):
             return ""
         if codec == "av1" and self._gpu_devices and not any(
                 self._supports_hardware_av1(device) for device in self._gpu_devices):
-            return "This GPU does not support hardware AV1 encoding. Using the CPU instead."
-        return "No hardware encoder is available for this codec in this installation. Using the CPU instead."
+            return tr("This GPU does not support hardware AV1 encoding. Using the CPU instead.")
+        return tr("No hardware encoder is available for this codec in this installation. Using the CPU instead.")
 
     @Slot(result=str)
     def diagnosticReport(self):
@@ -956,13 +971,13 @@ class ClipBackend(QObject):
         def grab_frame(task):
             # The still keeps the display shape of the source, sample aspect included.
             preview_w, preview_h = self._fit_box(self._source_dar(), 1280, 720)
-            args = ["ffmpeg", "-hide_banner", "-v", "error", "-i", path, "-ss", f"{sec:.4f}",
+            args = ["ffmpeg", "-hide_banner", "-v", "error", "-ss", f"{sec:.4f}", "-i", path,
                     "-frames:v", "1", "-vf", f"scale={preview_w}:{preview_h}",
                     "-q:v", "3", "-y", preview_path]
             p = task.run_process(args, timeout=30)
             if p.returncode or not os.path.isfile(preview_path):
                 raise RuntimeError(p.stderr.decode(errors="replace") or "Frame unavailable")
-            return (request_id, QUrl.fromLocalFile(preview_path).toString() + f"?v={generation}-{request_id}")
+            return (request_id, preview_path, QUrl.fromLocalFile(preview_path).toString() + f"?v={generation}-{request_id}")
 
         self._cancel_background_tasks("preview")
         self._run_task(grab_frame, self._preview_done, generation, "preview")
@@ -973,10 +988,22 @@ class ClipBackend(QObject):
             return
         if error or not result:
             return
-        request_id, url = result
+        request_id, preview_path, url = result
         if request_id == self._preview_id:
+            old_path = self._last_preview_path
+            self._last_preview_path = preview_path
             self._preview = url
             self.previewChanged.emit()
+            if old_path and old_path != preview_path:
+                try:
+                    os.unlink(old_path)
+                except OSError:
+                    pass
+        elif os.path.isfile(preview_path):
+            try:
+                os.unlink(preview_path)
+            except OSError:
+                pass
 
     @Slot(float)
     def setPlaybackPosition(self, seconds: float):
@@ -1504,7 +1531,7 @@ def main():
     video_argument = next((argument for argument in sys.argv[1:]
                            if not argument.startswith("-")), "")
     if video_argument:
-        video_url = QUrl.fromUserInput(video_argument)
+        video_url = QUrl.fromUserInput(video_argument, os.getcwd(), QUrl.AssumeLocalFile)
         QTimer.singleShot(0, lambda: backend.openUrl(video_url))
     app.aboutToQuit.connect(backend.shutdown)
     return app.exec()

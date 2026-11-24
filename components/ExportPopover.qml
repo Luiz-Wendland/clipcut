@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Layouts
 
 Rectangle {
     id: root
@@ -104,14 +105,16 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: 20
         spacing: 13
-        Row {
+        RowLayout {
             width: parent.width; height: 44
-            Column { spacing: 2
+            spacing: 8
+            Column {
+                Layout.fillWidth: true
+                spacing: 2
                 Text { text: qsTr("Export clip"); color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
-                Text { text: root.clipBackend.fileName || qsTr("Choose output settings"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: 280 }
+                Text { text: root.clipBackend.fileName || qsTr("Choose output settings"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: parent.width }
             }
-            Item { width: Math.max(0, parent.width - 330); height: 1 }
-            ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.closeRequested() }
+            ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; Layout.alignment: Qt.AlignVCenter; onClicked: root.closeRequested() }
         }
         Rectangle { width: parent.width; height: 1; color: root.tokens.outline }
         Controls.ScrollView {
@@ -254,6 +257,7 @@ Rectangle {
                         visible: root.selectedRatio === "Custom" && root.selectedCodec !== "copy"
                         text: root.customRatioValue; placeholderText: qsTr("Aspect ratio · e.g. 3:2")
                         invalid: !root.customRatioValid
+                        onTextEdited: text => root.customRatioChanged(text)
                         onEditingFinished: root.customRatioChanged(text)
                     }
                     Text {
@@ -305,7 +309,15 @@ Rectangle {
                         }
                         Text { text: qsTr("Estimated size"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
                     }
-                    LineEdit { width: parent.width; tokens: root.tokens; visible: root.targetSizeEnabled; text: root.targetSizeValue; placeholderText: qsTr("Size in MB"); onEditingFinished: root.targetValueEdited(text) }
+                    LineEdit {
+                        id: targetSizeInput
+                        width: parent.width; tokens: root.tokens
+                        visible: root.targetSizeEnabled
+                        text: root.targetSizeValue
+                        placeholderText: qsTr("Size in MB")
+                        onTextEdited: text => root.targetValueEdited(text)
+                        onEditingFinished: root.targetValueEdited(text)
+                    }
                     Text { visible: root.targetSizeEnabled; width: parent.width; text: qsTr("Single-pass encoding; final size may vary."); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap }
                 }
 
@@ -313,7 +325,9 @@ Rectangle {
                     width: parent.width
                     tokens: root.tokens
                     title: qsTr("Export queue")
-                    detail: root.clipBackend.queuedExportCount + " pendente(s)"
+                    detail: root.clipBackend.queuedExportCount === 1
+                            ? qsTr("1 queued")
+                            : qsTr("%1 queued").arg(root.clipBackend.queuedExportCount)
                     expanded: false
                     visible: root.clipBackend.queuedExports.length > 0
                     Repeater {
@@ -377,16 +391,18 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: 10
                 spacing: 3
-                Row {
+                RowLayout {
                     width: parent.width
+                    spacing: 8
                     Text {
                         text: root.outputResolution() + " px"
                         color: root.tokens.foreground
                         font.pixelSize: root.tokens.textSm
                         font.weight: Font.DemiBold
                         font.family: "monospace"
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
                     }
-                    Item { width: Math.max(0, parent.width - 170); height: 1 }
                     Text {
                         text: root.durationSummary()
                         color: root.tokens.accent
@@ -397,8 +413,9 @@ Rectangle {
                 }
                 Text {
                     width: parent.width
-                    text: root.encoderSummary() + " · " + Math.round(root.clipBackend.fps) + " fps · " +
-                          root.outputFormat.toUpperCase() +
+                    text: root.encoderSummary() +
+                          (root.clipBackend.fps > 0 ? " · " + Math.round(root.clipBackend.fps) + " fps" : "") +
+                          " · " + root.outputFormat.toUpperCase() +
                           " · " + (root.includeAudio && root.clipBackend.hasAudio ? "AAC" : qsTr("no audio"))
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
@@ -432,7 +449,14 @@ Rectangle {
                 kind: "tonal"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
                 width: (parent.width - parent.spacing) / 2
-                onClicked: root.queueRequested()
+                onClicked: {
+                    if (outputNameField.text.trim() !== root.outputName) {
+                        root.outputNameRequested(outputNameField.text)
+                        const cleaned = outputNameField.text.trim().replace(/\.(mp4|mkv)$/i, "").replace(/[. ]+$/, "")
+                        if (cleaned !== root.outputName) return
+                    }
+                    root.queueRequested()
+                }
             }
             ActionButton {
                 tokens: root.tokens
@@ -440,7 +464,14 @@ Rectangle {
                 symbol: "↗"; kind: "primary"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
                 width: (parent.width - parent.spacing) / 2
-                onClicked: root.exportRequested()
+                onClicked: {
+                    if (outputNameField.text.trim() !== root.outputName) {
+                        root.outputNameRequested(outputNameField.text)
+                        const cleaned = outputNameField.text.trim().replace(/\.(mp4|mkv)$/i, "").replace(/[. ]+$/, "")
+                        if (cleaned !== root.outputName) return
+                    }
+                    root.exportRequested()
+                }
             }
         }
     }

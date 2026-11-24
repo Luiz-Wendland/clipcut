@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 
 Column {
     id: root
@@ -15,7 +16,7 @@ Column {
         radius: tokens.radiusMedium
         color: headerMouse.containsMouse ? tokens.controlHover : "transparent"
         Behavior on color { ColorAnimation { duration: root.tokens.effectFast } }
-        Row {
+        RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 10
             anchors.rightMargin: 10
@@ -25,7 +26,7 @@ Column {
                 color: root.tokens.foreground
                 font.pixelSize: root.tokens.textSm
                 font.weight: Font.DemiBold
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.alignment: Qt.AlignVCenter
             }
             Text {
                 text: root.detail
@@ -33,16 +34,16 @@ Column {
                 color: root.tokens.muted
                 font.pixelSize: root.tokens.textXs
                 elide: Text.ElideRight
-                width: Math.max(0, parent.width - 84)
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
             }
-            Item { width: 1; height: 1 }
+            Item { visible: root.detail.length === 0; Layout.fillWidth: true; height: 1 }
             Text {
                 text: "⌄"
                 color: root.tokens.muted
                 rotation: root.expanded ? 180 : 0
                 font.pixelSize: 16
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.alignment: Qt.AlignVCenter
                 Behavior on rotation { NumberAnimation { duration: root.tokens.effectFast; easing.type: Easing.OutCubic } }
             }
         }

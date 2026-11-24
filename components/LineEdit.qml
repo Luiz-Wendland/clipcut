@@ -10,6 +10,7 @@ Rectangle {
     property bool readOnly: false
     property bool invalid: false
     signal editingFinished
+    signal textEdited(string text)
     implicitHeight: 38
     radius: tokens.radiusSmall
     color: input.activeFocus ? tokens.surfaceHigh : tokens.surfaceLow
@@ -33,5 +34,6 @@ Rectangle {
         font.pixelSize: root.tokens.textSm
         background: Item {}
         onEditingFinished: root.editingFinished()
+        onTextEdited: root.textEdited(text)
     }
 }
