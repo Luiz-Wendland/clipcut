@@ -4,7 +4,7 @@ import {tokens} from '../design';
 import {PreviewArtwork} from './PreviewArtwork';
 
 export type ClipCutWindowProps = {
-  tool?: 'Corte' | 'Enquadrar' | 'Áudio';
+  tool?: 'Trim' | 'Crop' | 'Audio';
   inPoint?: number;
   outPoint?: number;
   playhead?: number;
@@ -19,7 +19,7 @@ const C = tokens.colors;
 const R = tokens.radii;
 
 export const ClipCutWindow: React.FC<ClipCutWindowProps> = ({
-  tool = 'Corte', inPoint = 0.16, outPoint = 0.77, playhead = 0.42,
+  tool = 'Trim', inPoint = 0.16, outPoint = 0.77, playhead = 0.42,
   cropRatio = '16:9', cropAspect, showExport = false, exportProgress = 0, compact = false,
 }) => {
   const aspect = cropAspect ?? ({'16:9': 16 / 9, '4:3': 4 / 3, '1:1': 1, '9:16': 9 / 16}[cropRatio] ?? 16 / 9);
@@ -48,15 +48,15 @@ export const ClipCutWindow: React.FC<ClipCutWindowProps> = ({
         </div>
         <div style={{flex: 1}} />
         <div style={{borderRadius: 99, background: C.surfaceLow, color: C.muted, padding: '7px 12px', fontSize: 11, display: 'flex', gap: 7, alignItems: 'center'}}>
-          <span style={{width: 7, height: 7, borderRadius: 9, background: C.success}} /> Vídeo pronto
+          <span style={{width: 7, height: 7, borderRadius: 9, background: C.success}} /> Video ready
         </div>
-        <Button>⚙ Preferências</Button>
-        <Button primary>↗ Exportar</Button>
+        <Button>⚙ Preferences</Button>
+        <Button primary>↗ Export</Button>
       </div>
 
       <div style={{display: 'flex', flex: 1, minHeight: 0, gap: 8}}>
         <div style={{width: 72, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 12, alignItems: 'center'}}>
-          {(['Corte', 'Enquadrar', 'Áudio'] as const).map((label, i) => (
+          {(['Trim', 'Crop', 'Audio'] as const).map((label, i) => (
             <div key={label} style={{width: 64, height: 54, borderRadius: R.medium, background: tool === label ? C.accentSoft : 'transparent', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 2}}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={tool === label ? C.accent : C.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{i === 0 ? <><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M8.5 7.5L21 21M8.5 16.5L21 3" /></> : i === 1 ? <><path d="M7 3v14h14M3 7h14v14" /></> : <><path d="M9 18V5l11-2v13M9 8l11-2" /><ellipse cx="6" cy="18" rx="3" ry="2" /><ellipse cx="17" cy="16" rx="3" ry="2" /></>}</svg>
               <span style={{fontSize: 11, fontWeight: tool === label ? 600 : 400, color: tool === label ? C.foreground : C.muted}}>{label}</span>
@@ -66,24 +66,24 @@ export const ClipCutWindow: React.FC<ClipCutWindowProps> = ({
 
         <div style={{flex: 1, minWidth: 0, position: 'relative', borderRadius: R.large, overflow: 'hidden', background: C.preview, display: 'grid', placeItems: 'center'}}>
           <div style={{position: 'absolute', inset: 0}}><PreviewArtwork /></div>
-          {tool === 'Enquadrar' && <CropFrame ratio={cropRatio} width={cropWidthPct} height={cropHeightPct} />}
+          {tool === 'Crop' && <CropFrame ratio={cropRatio} width={cropWidthPct} height={cropHeightPct} />}
           <div style={{position: 'absolute', bottom: 14, width: 'min(520px, calc(100% - 28px))', height: 48, borderRadius: 99, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(27,29,36,.90)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 12}}>
-            <span style={{color: C.muted}}>− quadro</span><span style={{background: C.accentSoft, borderRadius: 99, padding: '8px 14px', color: C.foreground}}>Ⅱ Pausar</span><span style={{color: C.muted}}>+ quadro</span><span style={{fontFamily: 'JetBrains Mono', marginLeft: 22}}>{timecode(playhead)} / 00:08.00</span>
+            <span style={{color: C.muted}}>− frame</span><span style={{background: C.accentSoft, borderRadius: 99, padding: '8px 14px', color: C.foreground}}>Ⅱ Pause</span><span style={{color: C.muted}}>+ frame</span><span style={{fontFamily: 'JetBrains Mono', marginLeft: 22}}>{timecode(playhead)} / 00:08.00</span>
           </div>
         </div>
 
-        {tool !== 'Corte' && <div style={{width: 252, flexShrink: 0, padding: '16px 8px 12px 16px', display: 'flex', flexDirection: 'column', gap: 14}}>
+        {tool !== 'Trim' && <div style={{width: 252, flexShrink: 0, padding: '16px 8px 12px 16px', display: 'flex', flexDirection: 'column', gap: 14}}>
           <div style={{fontSize: 22, fontWeight: 600}}>{tool}</div>
-          {tool === 'Enquadrar' ? <>
-            <Label>PROPORÇÃO</Label>
+          {tool === 'Crop' ? <>
+            <Label>ASPECT RATIO</Label>
             <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>{['Original', '4:3', '16:9', '21:9', '9:16', '1:1', '4:5'].map((x) => <Chip key={x} selected={x === cropRatio}>{x}</Chip>)}</div>
-            <Button>⊙ Centralizar moldura</Button>
+            <Button>⊙ Center crop</Button>
             <div style={{height: 1, background: C.outline}} />
-            <Label>SAÍDA</Label><div style={{color: C.muted, fontSize: 12}}>{outputDimensions} px</div>
+            <Label>OUTPUT</Label><div style={{color: C.muted, fontSize: 12}}>{outputDimensions} px</div>
           </> : <>
             <div style={{height: 1, background: C.outline}} />
-            <div style={{fontSize: 13}}>Incluir áudio</div><div style={{fontSize: 11, color: C.muted}}>AAC estéreo · 192 kb/s</div>
-            <Label>VOLUME DA PRÉVIA</Label><Button>Mudo</Button><div style={{height: 4, background: C.surfaceHighest, borderRadius: 99}}><div style={{height: 4, width: '80%', background: C.accent, borderRadius: 99}} /></div>
+            <div style={{fontSize: 13}}>Include audio</div><div style={{fontSize: 11, color: C.muted}}>Stereo AAC · 192 kb/s</div>
+            <Label>PREVIEW VOLUME</Label><Button>Mute</Button><div style={{height: 4, background: C.surfaceHighest, borderRadius: 99}}><div style={{height: 4, width: '80%', background: C.accent, borderRadius: 99}} /></div>
           </>}
         </div>}
       </div>
@@ -93,8 +93,8 @@ export const ClipCutWindow: React.FC<ClipCutWindowProps> = ({
           <span style={{color: C.muted}}>IN</span><TimeBox>{timecode(inPoint)}</TimeBox>
           <span style={{color: C.muted, marginLeft: 8}}>OUT</span><TimeBox>{timecode(outPoint)}</TimeBox>
           <div style={{flex: 1}} />
-          <span style={{color: C.muted}}>Duração</span><span style={{color: C.accent, fontFamily: 'JetBrains Mono'}}>{timecode(selectedDuration / 8)}</span>
-          <Button small>1.0×</Button><Button small>+</Button><span style={{fontSize: 11}}>Reproduzir só o trecho</span>
+          <span style={{color: C.muted}}>Duration</span><span style={{color: C.accent, fontFamily: 'JetBrains Mono'}}>{timecode(selectedDuration / 8)}</span>
+          <Button small>1.0×</Button><Button small>+</Button><span style={{fontSize: 11}}>Play selection only</span>
         </div>
         <div style={{height: 112, position: 'relative', marginTop: 8, border: `1px solid ${C.outline}`, borderRadius: 13, overflow: 'hidden', background: C.canvas}}>
           <div style={{position: 'absolute', inset: 0, display: 'flex', opacity: .9}}>{Array.from({length: 12}, (_, i) => <div key={i} style={{flex: 1, minWidth: 0, overflow: 'hidden', borderRight: '1px solid rgba(255,255,255,.12)'}}><svg viewBox="0 0 160 110" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect width="160" height="110" fill="#8b7195" /><circle cx={114-i} cy="24" r="13" fill="#ffe2c4" /><path d="M0 80L35 26L80 73L112 35L160 81V110H0Z" fill="#3c435c" /><path d="M0 82Q50 72 90 85T160 80V110H0Z" fill="#536b83" /></svg></div>)}</div>
@@ -111,18 +111,18 @@ export const ClipCutWindow: React.FC<ClipCutWindowProps> = ({
       </div>
 
       {showExport && <div style={{position: 'absolute', top: 76, right: 18, bottom: 190, width: 390, borderRadius: R.extraLarge, background: C.surfaceHigh, border: `1px solid ${C.outline}`, boxShadow: '0 24px 80px rgba(0,0,0,.5)', padding: 20, display: 'flex', flexDirection: 'column', gap: 13}}>
-        <div style={{fontSize: 22, fontWeight: 600}}>Exportar clipe</div>
+        <div style={{fontSize: 22, fontWeight: 600}}>Export clip</div>
         <div style={{fontSize: 12, color: C.muted}}>sunset-over-lake.mp4</div><div style={{height: 1, background: C.outline}} />
         <Label>CODEC</Label><div style={{display: 'flex', gap: 6}}><Chip selected>H.264</Chip><Chip>HEVC</Chip><Chip>AV1</Chip></div>
         <Label>ENCODER</Label><div style={{display: 'flex', gap: 6}}><Chip selected>CPU</Chip><Chip>GPU</Chip></div>
-        <Label>QUALIDADE</Label><div style={{display: 'flex', gap: 6}}><Chip selected>Alta</Chip><Chip>Máxima</Chip><Chip>Compacto</Chip></div>
-        <Label>ENQUADRAMENTO</Label><div style={{fontSize: 12, color: C.muted}}>Original　·　16:9</div>
-        <Label>ÁUDIO</Label><div style={{fontSize: 12, color: C.muted}}>AAC estéreo · 192 kb/s</div>
-        <Label>SAÍDA</Label><div style={{fontSize: 12, color: C.muted}}>clip-sunset-over-lake.mp4　·　MP4</div>
+        <Label>QUALITY</Label><div style={{display: 'flex', gap: 6}}><Chip selected>High</Chip><Chip>Maximum</Chip><Chip>Compact</Chip></div>
+        <Label>CROP</Label><div style={{fontSize: 12, color: C.muted}}>Original　·　16:9</div>
+        <Label>AUDIO</Label><div style={{fontSize: 12, color: C.muted}}>Stereo AAC · 192 kb/s</div>
+        <Label>OUTPUT</Label><div style={{fontSize: 12, color: C.muted}}>clip-sunset-over-lake.mp4　·　MP4</div>
         <div style={{flex: 1}} />
         <div style={{borderRadius: R.medium, background: C.surface, padding: 12, fontSize: 11, color: C.muted}}>{outputDimensions} px　·　{timecode(selectedDuration / 8)}<br/>H.264 · CPU · 30 fps · MP4</div>
         <div style={{height: 4, background: C.surfaceHighest, borderRadius: 4}}><div style={{height: 4, width: `${Math.max(4, exportProgress * 100)}%`, background: C.accent, borderRadius: 4}} /></div>
-        <Button primary>↗ {exportProgress >= 1 ? 'Exportação concluída' : 'Exportar vídeo'}</Button>
+        <Button primary>↗ {exportProgress >= 1 ? 'Export complete' : 'Export video'}</Button>
       </div>}
     </div>
   );

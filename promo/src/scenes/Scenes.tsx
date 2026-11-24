@@ -14,7 +14,7 @@ const Backdrop: React.FC<React.PropsWithChildren> = ({children}) => <AbsoluteFil
   {children}
   <div style={{position: 'absolute', left: 76, bottom: 37, right: 76, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, letterSpacing: 1.5, color: C.muted}}>
     <span>CLIPCUT <span style={{opacity: .35, padding: '0 16px'}}> / </span> UM PROJETO PESSOAL</span>
-    <span style={{fontSize: 10, letterSpacing: .6}}>INTERFACE RECONSTITUÍDA · DEMONSTRAÇÃO VISUAL</span>
+    <span style={{fontSize: 10, letterSpacing: .6}}>SIMULATED INTERFACE · VISUAL DEMO</span>
   </div>
 </AbsoluteFill>;
 
@@ -39,14 +39,14 @@ export const Intro: React.FC = () => {
   return <Backdrop>
     <div style={{position: 'absolute', left: 100, top: 84, display: 'flex', alignItems: 'center', gap: 15}}><Img src={staticFile('clipcut-brand.svg')} style={{width: 46, height: 46}} /><span style={{fontSize: 22, fontWeight: 600}}>ClipCut</span></div>
     <div style={{position: 'absolute', left: 130, top: 232, opacity: exit}}>
-      <Reveal><Eyebrow>MENOS EDIÇÃO. MAIS MOMENTO.</Eyebrow></Reveal>
-      <Reveal delay={8}><div style={{fontSize: 116, lineHeight: 1.06, letterSpacing: -7, fontWeight: 600}}>Seu vídeo tem</div></Reveal>
+      <Reveal><Eyebrow>LESS EDITING. MORE OF THE MOMENT.</Eyebrow></Reveal>
+      <Reveal delay={8}><div style={{fontSize: 116, lineHeight: 1.06, letterSpacing: -7, fontWeight: 600}}>Find the moment</div></Reveal>
       <Reveal delay={20}><div style={{fontSize: 116, lineHeight: 1.12, letterSpacing: -7, fontWeight: 600}}>uma <span style={{color: C.accent}}>parte boa.</span></div></Reveal>
       <Reveal delay={75}><div style={{fontSize: 28, color: C.muted, marginTop: 30}}>Fique com ela.</div></Reveal>
     </div>
     <div style={{position: 'absolute', left: 130, right: 130, top: 735, height: 132, display: 'flex', gap: 10, opacity: exit, transform: `translateY(${interpolate(f, [35, 75], [65, 0], ease)}px)`}}>
       {Array.from({length: 9}, (_, i) => <div key={i} style={{flex: 1, borderRadius: 14, overflow: 'hidden', position: 'relative', opacity: i < 2 || i > 6 ? 1-cut*.8 : 1, transform: `translateX(${i < 2 ? -cut*65 : i > 6 ? cut*65 : 0}px)`, border: `1px solid ${C.outline}`}}><PreviewArtwork /></div>)}
-      <div style={{position: 'absolute', left: '22.2%', right: '22.2%', top: -7, bottom: -7, border: `2px solid ${C.accent}`, borderRadius: 18, boxShadow: `0 0 45px ${C.accent}18`, opacity: interpolate(f, [80, 100], [0, 1], ease)}}><span style={{position: 'absolute', top: -28, left: 0, color: C.accent, fontSize: 11, letterSpacing: 2}}>SÓ O QUE IMPORTA</span></div>
+      <div style={{position: 'absolute', left: '22.2%', right: '22.2%', top: -7, bottom: -7, border: `2px solid ${C.accent}`, borderRadius: 18, boxShadow: `0 0 45px ${C.accent}18`, opacity: interpolate(f, [80, 100], [0, 1], ease)}}><span style={{position: 'absolute', top: -28, left: 0, color: C.accent, fontSize: 11, letterSpacing: 2}}>KEEP WHAT MATTERS</span></div>
     </div>
   </Backdrop>;
 };
@@ -56,10 +56,10 @@ export const OpenVideo: React.FC = () => {
   const p = interpolate(f, [0, 100, 280, 318], [0, 1, 1, 1], ease);
   return <Backdrop>
     <div style={{position: 'absolute', left: 100, top: 280, width: 530}}>
-      <Reveal delay={14}><Eyebrow>01 / O ESSENCIAL</Eyebrow></Reveal>
-      <Reveal delay={25}><h1 style={{fontSize: 88, lineHeight: 1.04, letterSpacing: -5, fontWeight: 600, margin: 0}}>Um vídeo.<br/>Um bom<br/><span style={{color: C.accent}}>começo.</span></h1></Reveal>
-      <Reveal delay={58}><p style={{fontSize: 23, lineHeight: 1.6, color: C.muted, maxWidth: 420}}>Abra seu arquivo local.<br/>O próximo passo é escolher o trecho.</p></Reveal>
-      <Reveal delay={100}><div style={{display: 'flex', gap: 12, marginTop: 32}}>{['LOCAL', 'DIRETO', 'SEM EXCESSOS'].map(x => <span key={x} style={{fontSize: 10, letterSpacing: 1.4, padding: '12px 15px', border: `1px solid ${C.outline}`, borderRadius: 99}}>{x}</span>)}</div></Reveal>
+      <Reveal delay={14}><Eyebrow>01 / THE BASICS</Eyebrow></Reveal>
+      <Reveal delay={25}><h1 style={{fontSize: 88, lineHeight: 1.04, letterSpacing: -5, fontWeight: 600, margin: 0}}>One video.<br/>A good<br/><span style={{color: C.accent}}>start.</span></h1></Reveal>
+      <Reveal delay={58}><p style={{fontSize: 23, lineHeight: 1.6, color: C.muted, maxWidth: 420}}>Open a local video.<br/>Then choose the part to keep.</p></Reveal>
+      <Reveal delay={100}><div style={{display: 'flex', gap: 12, marginTop: 32}}>{['LOCAL', 'SIMPLE', 'NO CLUTTER'].map(x => <span key={x} style={{fontSize: 10, letterSpacing: 1.4, padding: '12px 15px', border: `1px solid ${C.outline}`, borderRadius: 99}}>{x}</span>)}</div></Reveal>
     </div>
     <div style={{position: 'absolute', left: 660, top: 160+(1-p)*100, transformOrigin: '0 50%', transform: `perspective(2200px) rotateY(${-8+p*5}deg) rotateX(2deg) scale(.82)`, opacity: interpolate(f, [0, 28], [0, 1], ease)}}><ClipCutWindow playhead={interpolate(f, [40, 270], [.16, .6], ease)} /></div>
   </Backdrop>;
@@ -79,12 +79,12 @@ export const TimelineDemo: React.FC = () => {
       {f > 80 && f < 300 && <Cursor x={x} y={810} pressed={press} />}
     </div>
     <div style={{position: 'absolute', inset: '0 0 auto', height: 355, background: `linear-gradient(${C.canvas} 78%, transparent)`, padding: '83px 100px'}}>
-      <Reveal><Eyebrow>02 / ESCOLHA O MOMENTO</Eyebrow></Reveal>
-      <Reveal delay={12}><div style={{fontSize: 80, lineHeight: 1, letterSpacing: -4, fontWeight: 600}}>{f < 210 ? <>Onde <span style={{color: C.accent}}>começa.</span></> : f < 330 ? <>Onde <span style={{color: C.accent}}>termina.</span></> : <>O resto <span style={{color: C.accent}}>fica de fora.</span></>}</div></Reveal>
+      <Reveal><Eyebrow>02 / CHOOSE YOUR MOMENT</Eyebrow></Reveal>
+      <Reveal delay={12}><div style={{fontSize: 80, lineHeight: 1, letterSpacing: -4, fontWeight: 600}}>{f < 210 ? <>Where it <span style={{color: C.accent}}>starts.</span></> : f < 330 ? <>Where it <span style={{color: C.accent}}>ends.</span></> : <>Leave the <span style={{color: C.accent}}>rest out.</span></>}</div></Reveal>
     </div>
     <div style={{position: 'absolute', bottom: 125, left: 110, right: 110, display: 'flex', justifyContent: 'space-between', opacity: zoom}}>
-      <div style={{color: C.muted, fontSize: 20}}>Arraste as alças. Refine sua seleção.</div>
-      <div style={{fontFamily: 'JetBrains Mono', color: C.accent, fontSize: 20}}>{((outPoint-inPoint)*8).toFixed(2)} s <span style={{color: C.muted, fontFamily: 'Inter', fontSize: 14}}>selecionados</span></div>
+      <div style={{color: C.muted, fontSize: 20}}>Drag the handles to refine your selection.</div>
+      <div style={{fontFamily: 'JetBrains Mono', color: C.accent, fontSize: 20}}>{((outPoint-inPoint)*8).toFixed(2)} s <span style={{color: C.muted, fontFamily: 'Inter', fontSize: 14}}>selected</span></div>
     </div>
   </Backdrop>;
 };
@@ -94,12 +94,12 @@ export const CropDemo: React.FC = () => {
   const aspect = interpolate(f, [0, 85, 135, 205, 255, 378], [16/9, 16/9, 1, 1, 9/16, 9/16], ease);
   const ratio = f < 110 ? '16:9' : f < 230 ? '1:1' : '9:16';
   return <Backdrop>
-    <div style={{position: 'absolute', left: 100, top: 175}}><Reveal><Eyebrow>03 / MUDE O ENQUADRAMENTO</Eyebrow></Reveal><Reveal delay={12}><div style={{fontSize: 74, letterSpacing: -4, fontWeight: 600}}>O mesmo momento.<br/><span style={{color: C.accent}}>Outro formato.</span></div></Reveal></div>
+    <div style={{position: 'absolute', left: 100, top: 175}}><Reveal><Eyebrow>03 / CHANGE THE CROP</Eyebrow></Reveal><Reveal delay={12}><div style={{fontSize: 74, letterSpacing: -4, fontWeight: 600}}>Same moment.<br/><span style={{color: C.accent}}>New framing.</span></div></Reveal></div>
     <div style={{position: 'absolute', left: 100, top: 460, width: 365}}>
       {(['16:9', '1:1', '9:16'] as const).map((r, i) => <div key={r} style={{display: 'flex', gap: 25, alignItems: 'center', padding: '24px 0', color: r === ratio ? C.accent : C.muted, borderBottom: `1px solid ${C.outline}`, opacity: r === ratio ? 1 : .5}}><div style={{width: 50, display: 'grid', placeItems: 'center'}}><div style={{width: i === 2 ? 19 : 38, height: i === 0 ? 22 : 38, border: '2px solid currentColor', borderRadius: 4}} /></div><span style={{fontSize: 26, fontFamily: 'JetBrains Mono'}}>{r}</span><span style={{marginLeft: 'auto', fontSize: 18}}>{r === ratio ? '↗' : '—'}</span></div>)}
-      <p style={{fontSize: 18, color: C.muted, lineHeight: 1.6}}>Quadrado, horizontal ou vertical.<br/>Você escolhe o recorte.</p>
+      <p style={{fontSize: 18, color: C.muted, lineHeight: 1.6}}>Square, landscape, or portrait.<br/>Choose your crop.</p>
     </div>
-    <div style={{position: 'absolute', left: 590, top: 380, width: 1330, height: 590, overflow: 'hidden', borderRadius: 28, maskImage: 'linear-gradient(black 94%, transparent)'}}><div style={{transformOrigin: 'top left', transform: `scale(.85) translateY(${interpolate(f, [0, 50], [55, 0], ease)}px)`}}><ClipCutWindow tool="Enquadrar" cropRatio={ratio} cropAspect={aspect} inPoint={.23} outPoint={.72} /></div></div>
+    <div style={{position: 'absolute', left: 590, top: 380, width: 1330, height: 590, overflow: 'hidden', borderRadius: 28, maskImage: 'linear-gradient(black 94%, transparent)'}}><div style={{transformOrigin: 'top left', transform: `scale(.85) translateY(${interpolate(f, [0, 50], [55, 0], ease)}px)`}}><ClipCutWindow tool="Crop" cropRatio={ratio} cropAspect={aspect} inPoint={.23} outPoint={.72} /></div></div>
   </Backdrop>;
 };
 
@@ -109,11 +109,11 @@ export const ExportDemo: React.FC = () => {
   const zoom = interpolate(f, [0, 75], [0, 1], ease);
   return <Backdrop>
     <div style={{position: 'absolute', left: 110, top: 250, width: 550}}>
-      <Reveal><Eyebrow>04 / FINALIZE SEU CLIPE</Eyebrow></Reveal>
-      <Reveal delay={16}><div style={{fontSize: 92, fontWeight: 600, letterSpacing: -5, lineHeight: 1.05}}>Seu corte.<br/>Suas <span style={{color: C.accent}}>opções.</span></div></Reveal>
-      <Reveal delay={45}><p style={{fontSize: 23, lineHeight: 1.6, color: C.muted}}>Formato, qualidade e áudio.<br/>Ajuste a saída do seu jeito.</p></Reveal>
+      <Reveal><Eyebrow>04 / FINISH YOUR CLIP</Eyebrow></Reveal>
+      <Reveal delay={16}><div style={{fontSize: 92, fontWeight: 600, letterSpacing: -5, lineHeight: 1.05}}>Your clip.<br/>Your <span style={{color: C.accent}}>options.</span></div></Reveal>
+      <Reveal delay={45}><p style={{fontSize: 23, lineHeight: 1.6, color: C.muted}}>Format, quality, and audio.<br/>Set up the export your way.</p></Reveal>
       <Reveal delay={80}><div style={{marginTop: 36, fontSize: 14, color: C.accent, letterSpacing: 2}}>H.264 <span style={{padding: '0 16px', color: C.outline}}>/</span> HEVC <span style={{padding: '0 16px', color: C.outline}}>/</span> AV1</div></Reveal>
-      <div style={{marginTop: 38, fontSize: 12, color: C.muted}}>Progresso ilustrativo; não representa tempo real de exportação.</div>
+      <div style={{marginTop: 38, fontSize: 12, color: C.muted}}>Illustrative progress, not actual export time.</div>
     </div>
     <div style={{position: 'absolute', left: 760, top: 90, width: 1160, height: 900, overflow: 'hidden', borderRadius: 32, maskImage: 'linear-gradient(to right, transparent, black 5%)'}}><div style={{position: 'absolute', left: 20-zoom*1000, top: 30, transformOrigin: 'top left', transform: `scale(${.86+zoom*.34})`}}><ClipCutWindow showExport exportProgress={progress} inPoint={.23} outPoint={.72} />{f > 25 && f < 70 && <Cursor x={1330} y={620} pressed={f > 50} />}</div></div>
   </Backdrop>;
@@ -125,8 +125,8 @@ export const Outro: React.FC = () => {
     <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', opacity: interpolate(f, [220, 240], [1, 0], ease)}}>
       <Reveal><Img src={staticFile('clipcut-brand.svg')} style={{width: 120, height: 120, marginBottom: 16}} /></Reveal>
       <Reveal delay={8}><div style={{fontSize: 110, fontWeight: 600, letterSpacing: -6}}>ClipCut</div></Reveal>
-      <Reveal delay={22}><div style={{fontSize: 34, color: C.muted, marginTop: 12}}>Menos excesso. <span style={{color: C.foreground}}>Mais momento.</span></div></Reveal>
-      <Reveal delay={45}><div style={{marginTop: 52, padding: '17px 26px', color: C.onAccent, background: C.accent, borderRadius: 99, fontSize: 18}}>Conheça o projeto <span style={{paddingLeft: 25}}>↗</span></div></Reveal>
+      <Reveal delay={22}><div style={{fontSize: 34, color: C.muted, marginTop: 12}}>Less clutter. <span style={{color: C.foreground}}>More of the moment.</span></div></Reveal>
+      <Reveal delay={45}><div style={{marginTop: 52, padding: '17px 26px', color: C.onAccent, background: C.accent, borderRadius: 99, fontSize: 18}}>Explore the project <span style={{paddingLeft: 25}}>↗</span></div></Reveal>
       <Reveal delay={60}><div style={{marginTop: 24, fontSize: 14, color: C.muted}}>github.com/Luiz-Wendland/clipcut</div></Reveal>
       <Reveal delay={75}><div style={{marginTop: 52, fontSize: 11, letterSpacing: 3, color: C.accent}}>LOCAL　 /　 OPEN SOURCE　 /　 MIT</div></Reveal>
     </div>

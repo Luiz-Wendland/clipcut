@@ -6,7 +6,7 @@ The QML application remains the source of truth. The promo recreates only the vi
 |---|---|---|
 | `DesignTokens.qml` | ClipCut dark palette, lavender accent, radii, spacing, type scale, outer margin, toolbar/timeline dimensions | `src/design/tokens.json`, extracted by `scripts/extract-tokens.py`; `src/design/index.ts` adds only semantic aliases derived from those values |
 | `Main.qml` toolbar | Branding, project/file title, status pill, Preferences and Export actions | Header in `src/components/ClipCutWindow.tsx` |
-| `Main.qml` workspace / `ToolTab.qml` | 72 px rail, Corte / Enquadrar / Áudio selection and active state | Navigation rail in `ClipCutWindow.tsx` |
+| `Main.qml` workspace / `ToolTab.qml` | 72 px rail, Trim / Crop / Audio selection and active state | Navigation rail in `ClipCutWindow.tsx` |
 | `Main.qml` preview | rounded `#090a0d` viewport, aspect-fit image, crop mask and transport pill | `PreviewArtwork.tsx`, player overlay and `CropFrame` in `ClipCutWindow.tsx` |
 | `ClipTimeline.qml` | IN/OUT time fields, duration, zoom, selected range, dimmed outside region, playhead, thumbnails, waveform | Timeline panel in `ClipCutWindow.tsx`; frame-driven `inPoint`, `outPoint` and `playhead` props |
 | `ToolInspector.qml` | Crop ratio choices, center action, audio inclusion and preview volume | Inspector panel in `ClipCutWindow.tsx`; only relevant controls are shown per scene |

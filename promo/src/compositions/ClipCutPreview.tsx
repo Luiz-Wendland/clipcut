@@ -11,6 +11,6 @@ export const ClipCutPreview: React.FC = () => {
   const inPoint = interpolate((Math.sin(phase * 2 - Math.PI / 2) + 1) / 2, [0, 1], [.13, .23]);
   const outPoint = interpolate((Math.sin(phase * 2 + Math.PI / 2) + 1) / 2, [0, 1], [.68, .82]);
   return <AbsoluteFill style={{background: 'radial-gradient(ellipse at 50% 45%, #282630, #101115 78%)', display: 'grid', placeItems: 'center', overflow: 'hidden'}}>
-    <div style={{transform: 'scale(.84)'}}><ClipCutWindow tool="Corte" compact inPoint={inPoint} outPoint={outPoint} playhead={playhead} /></div>
+    <div style={{transform: 'scale(.84)'}}><ClipCutWindow tool="Trim" compact inPoint={inPoint} outPoint={outPoint} playhead={playhead} /></div>
   </AbsoluteFill>;
 };

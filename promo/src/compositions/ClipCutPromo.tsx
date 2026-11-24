@@ -14,10 +14,10 @@ export const ClipCutPromo: React.FC = () => <AbsoluteFill style={{backgroundColo
     <TransitionSeries.Transition presentation={wipe({direction: 'from-bottom'})} timing={linearTiming({durationInFrames: 18})} />
     <TransitionSeries.Sequence name="Timeline" durationInFrames={498}><TimelineDemo /></TransitionSeries.Sequence>
     <TransitionSeries.Transition presentation={wipe({direction: 'from-right'})} timing={linearTiming({durationInFrames: 18})} />
-    <TransitionSeries.Sequence name="Enquadramento" durationInFrames={378}><CropDemo /></TransitionSeries.Sequence>
+    <TransitionSeries.Sequence name="Crop" durationInFrames={378}><CropDemo /></TransitionSeries.Sequence>
     <TransitionSeries.Transition presentation={wipe({direction: 'from-right'})} timing={linearTiming({durationInFrames: 18})} />
-    <TransitionSeries.Sequence name="Exportação" durationInFrames={318}><ExportDemo /></TransitionSeries.Sequence>
+    <TransitionSeries.Sequence name="Export" durationInFrames={318}><ExportDemo /></TransitionSeries.Sequence>
     <TransitionSeries.Transition presentation={fade()} timing={linearTiming({durationInFrames: 18})} />
-    <TransitionSeries.Sequence name="Encerramento" durationInFrames={240}><Outro /></TransitionSeries.Sequence>
+    <TransitionSeries.Sequence name="Outro" durationInFrames={240}><Outro /></TransitionSeries.Sequence>
   </TransitionSeries>
 </AbsoluteFill>;
