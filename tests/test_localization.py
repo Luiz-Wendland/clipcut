@@ -42,6 +42,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from shiboken6 import delete
 
 from main import ClipBackend, EXPORT_CANCELED
 from localization import tr
@@ -89,6 +90,8 @@ backend._active_queue_job["status"] = "exporting"
 backend._export_done(False, EXPORT_CANCELED)
 assert backend._active_queue_job["status"] == "cancelled"
 assert backend.status == "Exportação cancelada"
+# Destroy the QML bindings while their context property is still alive.
+delete(engine)
 backend.shutdown()
 del root, selector, engine, backend
 
@@ -102,6 +105,7 @@ selector.activated.emit(1)
 app.processEvents()
 assert backend.languageMode == "en"
 assert {"Open video", "Preferences", "Export clip"} <= strings(root)
+delete(engine)
 backend.shutdown()
 '''
         with tempfile.TemporaryDirectory() as directory:
