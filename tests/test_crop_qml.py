@@ -50,7 +50,7 @@ while time.monotonic() < deadline and not backend.hasVideo:
     app.processEvents()
     time.sleep(.01)
 assert backend.hasVideo, backend.status
-root.setProperty("activeTool", "Enquadrar")
+root.setProperty("activeTool", "Crop")
 root.setProperty("showExport", True)
 app.processEvents()
 
@@ -103,7 +103,7 @@ for ratio, target in (("21:9", 21 / 9), ("9:16", 9 / 16), ("1:1", 1.0), ("4:3", 
 
     # The reported resolution must be the one the export writes.
     command, _ = backend._command(sys.argv[2] + ".mp4", "h264", ratio, "3:2",
-                                  "Alta qualidade", False)
+                                  "High quality", False)
     filter_value = command[command.index("-vf") + 1]
     width, height = (int(v) for v in filter_value[len("crop="):].split(":")[:2])
     assert (size["width"], size["height"]) == (width, height), \

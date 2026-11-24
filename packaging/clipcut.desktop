@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=ClipCut
-Comment=Editor local de vídeo para cortar clipes
+Comment=Local video clip editor
 Exec=AppRun %F
 Icon=clipcut
 Categories=AudioVideo;Video;AudioVideoEditing;

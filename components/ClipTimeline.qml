@@ -138,7 +138,7 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.NoButton
-                        Controls.ToolTip.text: "Marcar entrada no quadro atual · I"
+                        Controls.ToolTip.text: "Set in point at current frame · I"
                         Controls.ToolTip.visible: containsMouse
                         Controls.ToolTip.delay: 600
                     }
@@ -164,7 +164,7 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.NoButton
-                        Controls.ToolTip.text: "Marcar saída no quadro atual · O"
+                        Controls.ToolTip.text: "Set out point at current frame · O"
                         Controls.ToolTip.visible: containsMouse
                         Controls.ToolTip.delay: 600
                     }
@@ -185,7 +185,7 @@ Rectangle {
             Item { Layout.fillWidth: true; height: 1 }
             Column {
                 spacing: 0
-                Text { text: "Duração"; color: root.tokens.muted; font.pixelSize: root.tokens.textSm }
+                Text { text: "Duration"; color: root.tokens.muted; font.pixelSize: root.tokens.textSm }
                 Text {
                     text: root.timecode(root.clipBackend.clipEnd - root.clipBackend.clipStart)
                     color: root.tokens.accent
@@ -199,18 +199,18 @@ Rectangle {
                 Layout.leftMargin: 8
                 ActionButton {
                     tokens: root.tokens; text: "−"; compact: true; enabled: root.viewZoom > 1
-                    Controls.ToolTip.text: "Diminuir zoom"
+                    Controls.ToolTip.text: "Zoom out"
                     onClicked: root.zoomAt(track.width / 2, 0.8)
                 }
                 ActionButton {
                     tokens: root.tokens; text: root.viewZoom.toFixed(1) + "×"; compact: true
-                    Controls.ToolTip.text: "Ajustar à duração completa"
+                    Controls.ToolTip.text: "Fit full duration"
                     onClicked: { root.viewZoom = 1; root.viewStart = 0 }
                 }
                 ActionButton {
                     objectName: "timelineZoomIn"
                     tokens: root.tokens; text: "+"; compact: true; enabled: root.viewZoom < root.maxZoom
-                    Controls.ToolTip.text: "Aumentar zoom (máximo 4×)"
+                    Controls.ToolTip.text: "Zoom in (up to 4×)"
                     onClicked: root.zoomAt(track.width / 2, 1.25)
                 }
             }
@@ -230,7 +230,7 @@ Rectangle {
                     MouseArea { anchors.fill: parent; enabled: root.clipBackend.hasVideo; cursorShape: Qt.PointingHandCursor; onClicked: root.playSelectionToggled(!root.playSelection) }
                 }
                 Text {
-                    text: "Reproduzir só o trecho"
+                    text: "Play selection only"
                     color: root.clipBackend.hasVideo ? root.tokens.foreground : root.tokens.muted
                     font.pixelSize: root.tokens.textSm
                     anchors.verticalCenter: parent.verticalCenter
@@ -289,11 +289,11 @@ Rectangle {
                 z: 3
                 horizontalAlignment: Text.AlignHCenter
                 text: root.clipBackend.timelineImageStatus === "error"
-                      ? "Miniaturas indisponíveis"
+                      ? "Thumbnails unavailable"
                       : root.thumbnailLoadError()
-                        ? "Falha ao carregar miniaturas"
+                        ? "Could not load thumbnails"
                       : root.clipBackend.timelineImageStatus === "ready"
-                        ? "Carregando miniaturas…" : "Gerando miniaturas…"
+                        ? "Loading thumbnails…" : "Generating thumbnails…"
                 color: root.tokens.muted
                 font.pixelSize: root.tokens.textXs
                 visible: root.clipBackend.hasVideo &&
@@ -334,13 +334,13 @@ Rectangle {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 text: !root.clipBackend.hasAudio
-                      ? "Sem faixa de áudio neste vídeo"
+                      ? "No audio track in this video"
                       : root.clipBackend.waveformStatus === "error"
-                      ? "Waveform indisponível"
+                      ? "Audio waveform unavailable"
                       : waveformImage.loadState === "error"
-                        ? "Falha ao carregar waveform"
+                        ? "Could not load the waveform"
                       : root.clipBackend.waveformStatus === "ready"
-                        ? "Carregando waveform…" : "Gerando waveform…"
+                        ? "Loading waveform…" : "Generating waveform…"
                 color: root.tokens.muted
                 font.pixelSize: root.tokens.textXs
                 visible: root.clipBackend.hasVideo &&
@@ -483,7 +483,7 @@ Rectangle {
                 anchors.fill: parent
                 z: 3
                 hoverEnabled: true
-                Controls.ToolTip.text: "Arraste para navegar · Ctrl+roda: zoom · Shift+roda: mover · duplo clique: ajustar"
+                Controls.ToolTip.text: "Drag to scrub · Ctrl+wheel: zoom · Shift+wheel: pan · double-click: fit"
                 Controls.ToolTip.visible: containsMouse && root.clipBackend.hasVideo
                 Controls.ToolTip.delay: 700
                 onPressed: function(mouse) {

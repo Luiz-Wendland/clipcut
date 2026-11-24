@@ -20,9 +20,9 @@ Window {
 
     property string themeMode: "ClipCut"
     property bool reducedMotion: false
-    property string activeTool: "Corte"
+    property string activeTool: "Trim"
     property string selectedCodec: "h264"
-    property string selectedQuality: "Alta qualidade"
+    property string selectedQuality: "High quality"
     property string selectedRatio: "Original"
     property string customRatioValue: "3:2"
     property string lastValidCustomRatio: "3:2"
@@ -58,7 +58,7 @@ Window {
     // The crop overlay only makes sense once the video frame is on screen:
     // until then VideoOutput.contentRect still covers the whole panel.
     readonly property bool showCropOverlay: backend.hasVideo &&
-                                           root.activeTool === "Enquadrar" &&
+                                           root.activeTool === "Crop" &&
                                            videoOutput.sourceRect.width > 0
     readonly property bool outputNameValid: outputName.trim().length > 0 &&
                                             outputName.trim() !== "." && outputName.trim() !== ".." &&
@@ -97,7 +97,7 @@ Window {
         root.customRatioValue = ratio
         if (!root.customRatioValid) return
         root.lastValidCustomRatio = ratio
-        backend.setCropRatio("Livre", ratio)
+        backend.setCropRatio("Custom", ratio)
     }
     function showNotice(message, isError) {
         notice = message
@@ -114,7 +114,7 @@ Window {
         let name = value.trim()
         name = name.replace(/\.(mp4|mkv)$/i, "").replace(/[. ]+$/, "")
         if (!name || name === "." || name === ".." || /[\/\\\x00-\x1f]/.test(name)) {
-            showNotice("Use um nome de arquivo válido, sem barras.", true)
+            showNotice("Use a valid file name without slashes.", true)
             return
         }
         outputName = name
@@ -162,11 +162,11 @@ Window {
         const target = targetSizeEnabled ? Number(targetSizeValue) : 0
         const ratio = selectedRatio
         if (targetSizeEnabled && (!Number.isFinite(target) || target <= 0)) {
-            showNotice("Informe um tamanho-alvo válido em MB.", true)
+            showNotice("Enter a valid target size in MB.", true)
             return
         }
-        if (ratio === "Livre" && !customRatioValid) {
-            showNotice("Use uma proporção válida, por exemplo 3:2.", true)
+        if (ratio === "Custom" && !customRatioValid) {
+            showNotice("Enter a valid aspect ratio, such as 3:2.", true)
             return
         }
         if (!pendingOutput) {
@@ -181,15 +181,15 @@ Window {
     function enqueueCurrentExport() {
         const target = targetSizeEnabled ? Number(targetSizeValue) : 0
         if (targetSizeEnabled && (!Number.isFinite(target) || target <= 0)) {
-            showNotice("Informe um tamanho-alvo válido em MB.", true)
+            showNotice("Enter a valid target size in MB.", true)
             return
         }
-        if (selectedRatio === "Livre" && !customRatioValid) {
-            showNotice("Use uma proporção válida, por exemplo 3:2.", true)
+        if (selectedRatio === "Custom" && !customRatioValid) {
+            showNotice("Enter a valid aspect ratio, such as 3:2.", true)
             return
         }
         if (!outputNameValid) {
-            showNotice("Use um nome de arquivo válido, sem barras.", true)
+            showNotice("Use a valid file name without slashes.", true)
             return
         }
         if (!outputDirectory) {
@@ -207,11 +207,11 @@ Window {
         pendingOutput = generatedOutputPath(directory)
         if (!beginExport) return
         if (!outputNameValid) {
-            showNotice("Use um nome de arquivo válido, sem barras.", true)
+            showNotice("Use a valid file name without slashes.", true)
             return
         }
         if (backend.outputIsSource(pendingOutput)) {
-            showNotice("O vídeo original não pode ser o destino.", true)
+            showNotice("The output cannot overwrite the source video.", true)
             return
         }
         if (backend.outputExists(pendingOutput)) showOverwrite = true
@@ -242,7 +242,7 @@ Window {
             }
         }
         onErrorOccurred: function(error, errorString) {
-            root.showNotice("Falha de reprodução: " + errorString, true)
+            root.showNotice("Playback error: " + errorString, true)
         }
     }
     Timer {
@@ -273,15 +273,15 @@ Window {
     FileDialog {
         id: openDialog
         objectName: "openFileDialog"
-        title: "Abrir vídeo"
+        title: "Open video"
         fileMode: FileDialog.OpenFile
-        nameFilters: ["Vídeos (*.mp4 *.mkv *.mov *.webm *.avi *.m4v *.ts)", "Todos os arquivos (*)"]
+        nameFilters: ["Videos (*.mp4 *.mkv *.mov *.webm *.avi *.m4v *.ts)", "All files (*)"]
         onAccepted: backend.openLocalUrl(selectedFile.toString())
     }
     FolderDialog {
         id: folderDialog
         objectName: "outputFolderDialog"
-        title: "Escolher pasta de exportação"
+        title: "Choose export folder"
         onAccepted: {
             const directory = backend.localPath(selectedFolder.toString())
             if (directory) {
@@ -294,7 +294,7 @@ Window {
             }
             else {
                 root.folderDialogForQueue = false
-                root.showNotice("Escolha uma pasta local.", true)
+                root.showNotice("Choose a local folder.", true)
             }
             root.folderDialogForExport = false
         }
@@ -393,7 +393,7 @@ Window {
                     Text { text: "ClipCut"; color: theme.foreground; font.pixelSize: theme.textMd; font.weight: Font.DemiBold }
                     Text {
                         width: parent.width
-                        text: backend.fileName || "Um corte, sem complicação"
+                        text: backend.fileName || "Simple video trimming"
                         color: theme.muted
                         font.pixelSize: theme.textXs
                         elide: Text.ElideMiddle
@@ -432,7 +432,7 @@ Window {
                     id: openVideoButton
                     objectName: "openVideoButton"
                     tokens: root.tokens
-                    text: "Abrir"
+                    text: "Open"
                     symbol: "+"
                     width: backend.filePath || backend.busy ? implicitWidth : 0
                     visible: width > 0
@@ -441,7 +441,7 @@ Window {
                 }
                 ActionButton {
                     tokens: root.tokens
-                    text: "Preferências"
+                    text: "Preferences"
                     symbol: "⚙"
                     kind: "quiet"
                     compact: true
@@ -451,7 +451,7 @@ Window {
                 }
                 ActionButton {
                     tokens: root.tokens
-                    text: "Exportar"
+                    text: "Export"
                     symbol: "↗"
                     kind: "primary"
                     enabled: backend.hasVideo && !backend.busy
@@ -483,9 +483,9 @@ Window {
                         spacing: 8
                         Repeater {
                             model: [
-                                { name: "Corte", glyph: "⌁" },
-                                { name: "Enquadrar", glyph: "◱" },
-                                { name: "Áudio", glyph: "♫" }
+                                { name: "Trim", glyph: "⌁" },
+                                { name: "Crop", glyph: "◱" },
+                                { name: "Audio", glyph: "♫" }
                             ]
                             delegate: ToolTab {
                                 required property var modelData
@@ -493,7 +493,7 @@ Window {
                                 title: modelData.name
                                 symbol: modelData.glyph
                                 selected: root.activeTool === modelData.name
-                                enabled: modelData.name === "Corte" || backend.hasVideo
+                                enabled: modelData.name === "Trim" || backend.hasVideo
                                 onClicked: {
                                     root.activeTool = modelData.name
                                 }
@@ -541,9 +541,9 @@ Window {
                                 fillMode: VectorImage.PreserveAspectFit
                                 preferredRendererType: VectorImage.CurveRenderer
                             }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Seu próximo corte começa aqui"; color: theme.foreground; font.pixelSize: theme.textLg; font.weight: Font.DemiBold }
-                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Abra um vídeo ou solte-o nesta janela"; color: theme.muted; font.pixelSize: theme.textSm }
-                            ActionButton { anchors.horizontalCenter: parent.horizontalCenter; tokens: root.tokens; text: "Abrir vídeo"; symbol: "+"; kind: "tonal"; onClicked: openDialog.open() }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Start with a video"; color: theme.foreground; font.pixelSize: theme.textLg; font.weight: Font.DemiBold }
+                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Open a video or drop it here"; color: theme.muted; font.pixelSize: theme.textSm }
+                            ActionButton { anchors.horizontalCenter: parent.horizontalCenter; tokens: root.tokens; text: "Open video"; symbol: "+"; kind: "tonal"; onClicked: openDialog.open() }
                     }
 
                     Rectangle {
@@ -553,7 +553,7 @@ Window {
                         height: 38
                         radius: theme.radiusFull
                         color: "#dc191a20"
-                        Text { id: loadingLabel; anchors.centerIn: parent; text: "Lendo seu vídeo…"; color: theme.foreground; font.pixelSize: theme.textSm }
+                        Text { id: loadingLabel; anchors.centerIn: parent; text: "Loading video…"; color: theme.foreground; font.pixelSize: theme.textSm }
                     }
 
                     // Four quiet masks leave the actual crop boundary unobscured.
@@ -621,7 +621,7 @@ Window {
                     // tab is active, so make it visible instead of invisible.
                     Rectangle {
                         visible: backend.hasVideo && backend.cropActive &&
-                                 root.activeTool !== "Enquadrar" &&
+                                 root.activeTool !== "Crop" &&
                                  videoOutput.sourceRect.width > 0
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top: parent.top
@@ -635,7 +635,7 @@ Window {
                         Text {
                             id: badgeLabel
                             anchors.centerIn: parent
-                            text: "Recorte " + root.selectedRatio + " aplicado"
+                            text: "Crop " + root.selectedRatio + " applied"
                             color: theme.foreground
                             font.pixelSize: theme.textXs
                         }
@@ -651,7 +651,7 @@ Window {
                         z: 12
                         Text {
                             anchors.centerIn: parent
-                            text: "Solte o vídeo para abrir"
+                            text: "Drop a video to open it"
                             color: theme.foreground
                             font.pixelSize: theme.textMd
                             font.weight: Font.DemiBold
@@ -676,14 +676,14 @@ Window {
                             anchors.rightMargin: 12
                             spacing: 6
                             ActionButton {
-                                tokens: root.tokens; text: "− quadro"; compact: true; kind: "quiet"
+                                tokens: root.tokens; text: "− frame"; compact: true; kind: "quiet"
                                 anchors.verticalCenter: parent.verticalCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 - (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
                             }
                             ActionButton {
                                 tokens: root.tokens
-                                text: root.isPlaying ? "Pausar" : "Reproduzir"
+                                text: root.isPlaying ? "Pause" : "Play"
                                 symbol: root.isPlaying ? "Ⅱ" : "▶"
                                 kind: "tonal"
                                 anchors.verticalCenter: parent.verticalCenter
@@ -698,7 +698,7 @@ Window {
                                 }
                             }
                             ActionButton {
-                                tokens: root.tokens; text: "+ quadro"; compact: true; kind: "quiet"
+                                tokens: root.tokens; text: "+ frame"; compact: true; kind: "quiet"
                                 anchors.verticalCenter: parent.verticalCenter
                                 enabled: backend.hasVideo
                                 onClicked: root.seekTo(player.position / 1000 + (backend.fps > 0 ? 1 / backend.fps : 1 / 30))
@@ -769,7 +769,7 @@ Window {
                 ActionButton {
                     visible: backend.exporting
                     tokens: root.tokens
-                    text: "Cancelar"
+                    text: "Cancel"
                     kind: "danger"
                     compact: true
                     anchors.verticalCenter: parent.verticalCenter
@@ -859,18 +859,18 @@ Window {
             anchors.fill: parent; anchors.margins: 18; spacing: 10
             Row {
                 width: parent.width; height: 38
-                Text { text: "Preferências"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "Preferences"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                 Item { width: Math.max(0, parent.width - 150); height: 1 }
                 ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.showSettings = false }
             }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
-            Text { text: "APARÊNCIA"; color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+            Text { text: "APPEARANCE"; color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
             Row {
                 spacing: 7
                 ActionButton { tokens: root.tokens; text: "ClipCut"; checked: root.themeMode === "ClipCut"; onClicked: root.themeMode = "ClipCut" }
-                ActionButton { tokens: root.tokens; text: "Seguir o KDE"; checked: root.themeMode === "KDE"; onClicked: root.themeMode = "KDE" }
+                ActionButton { tokens: root.tokens; text: "Follow KDE"; checked: root.themeMode === "KDE"; onClicked: root.themeMode = "KDE" }
             }
-            Text { width: parent.width; text: root.themeMode === "KDE" ? "Usa as cores do esquema ativo do KDE." : "Grafite escuro e lavanda suave."; color: theme.muted; font.pixelSize: theme.textXs; wrapMode: Text.WordWrap }
+            Text { width: parent.width; text: root.themeMode === "KDE" ? "Uses the active KDE color scheme." : "Dark graphite and soft lavender."; color: theme.muted; font.pixelSize: theme.textXs; wrapMode: Text.WordWrap }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
             Row {
                 width: parent.width; height: 42; spacing: 10
@@ -879,8 +879,8 @@ Window {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.reducedMotion = !root.reducedMotion }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: "Reduzir movimento"; color: theme.foreground; font.pixelSize: theme.textSm }
-                    Text { text: "Animações mais discretas"; color: theme.muted; font.pixelSize: theme.textXs }
+                    Text { text: "Reduce motion"; color: theme.foreground; font.pixelSize: theme.textSm }
+                    Text { text: "Subtler animations"; color: theme.muted; font.pixelSize: theme.textXs }
                 }
             }
             Row {
@@ -902,13 +902,13 @@ Window {
                     }
                 }
                 Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: "Usar aceleração de GPU quando compatível"; color: theme.foreground; font.pixelSize: theme.textSm }
+                    Text { text: "Use GPU acceleration when supported"; color: theme.foreground; font.pixelSize: theme.textSm }
                     Text { text: backend.gpuName; color: theme.muted; font.pixelSize: theme.textXs; elide: Text.ElideRight; width: 250 }
                 }
             }
             ActionButton {
                 tokens: root.tokens
-                text: "Diagnóstico de exportação"
+                text: "Export diagnostics"
                 compact: true
                 onClicked: {
                     root.diagnosticsText = backend.diagnosticReport()
@@ -935,13 +935,13 @@ Window {
             spacing: 12
             Row {
                 width: parent.width
-                Text { text: "Diagnóstico de exportação"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "Export diagnostics"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                 Item { width: Math.max(0, parent.width - 300); height: 1 }
                 ActionButton { tokens: root.tokens; text: "×"; compact: true; kind: "quiet"; onClicked: root.showDiagnostics = false }
             }
             Text {
                 width: parent.width
-                text: "O relatório mostra versões e encoders detectados; não inclui caminhos dos vídeos. Confira o modelo da GPU antes de compartilhar."
+                text: "This report lists detected versions and encoders, but no video paths. Check the GPU model before sharing."
                 color: theme.muted
                 font.pixelSize: theme.textXs
                 wrapMode: Text.WordWrap
@@ -962,7 +962,7 @@ Window {
             }
             ActionButton {
                 tokens: root.tokens
-                text: "Copiar diagnóstico"
+                text: "Copy diagnostics"
                 kind: "primary"
                 onClicked: backend.copyDiagnosticReport()
             }
@@ -982,14 +982,14 @@ Window {
         Behavior on scale { NumberAnimation { duration: theme.spatialFast; easing.type: Easing.OutCubic } }
         Column {
             anchors.fill: parent; anchors.margins: 24; spacing: 12
-            Text { text: "Substituir este arquivo?"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold }
-            Text { width: parent.width; text: "A versão atual só será trocada quando a nova exportação terminar e passar na validação."; color: theme.muted; font.pixelSize: theme.textSm; wrapMode: Text.WordWrap }
+            Text { text: "Replace this file?"; color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold }
+            Text { width: parent.width; text: "The existing file is replaced only after the new export finishes and passes validation."; color: theme.muted; font.pixelSize: theme.textSm; wrapMode: Text.WordWrap }
             Text { width: parent.width; text: root.pendingOutput; color: theme.accent; font.pixelSize: theme.textXs; elide: Text.ElideMiddle }
             Item { width: 1; height: 1 }
             Row {
                 anchors.right: parent.right; spacing: 8
-                ActionButton { tokens: root.tokens; text: "Cancelar"; kind: "quiet"; onClicked: root.showOverwrite = false }
-                ActionButton { tokens: root.tokens; text: "Substituir"; kind: "primary"; onClicked: root.startExport(true) }
+                ActionButton { tokens: root.tokens; text: "Cancel"; kind: "quiet"; onClicked: root.showOverwrite = false }
+                ActionButton { tokens: root.tokens; text: "Replace"; kind: "primary"; onClicked: root.startExport(true) }
             }
         }
     }
@@ -1070,7 +1070,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
                         Text {
-                            text: "Renderizando vídeo"
+                            text: "Exporting video"
                             color: theme.foreground
                             font.pixelSize: theme.textXl
                             font.weight: Font.DemiBold
@@ -1099,7 +1099,7 @@ Window {
                     spacing: 12
                     Text {
                         width: Math.max(0, parent.width - renderCancelButton.implicitWidth - parent.spacing)
-                        text: backend.progress > 0 ? backend.progress + "%" : "Preparando…"
+                        text: backend.progress > 0 ? backend.progress + "%" : "Preparing…"
                         color: theme.foreground
                         font.pixelSize: theme.textSm
                         font.weight: Font.DemiBold
@@ -1110,7 +1110,7 @@ Window {
                         id: renderCancelButton
                         objectName: "renderCancelButton"
                         tokens: root.tokens
-                        text: "Cancelar"
+                        text: "Cancel"
                         kind: "danger"
                         compact: true
                         anchors.verticalCenter: parent.verticalCenter

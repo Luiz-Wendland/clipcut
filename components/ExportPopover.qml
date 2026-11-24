@@ -10,7 +10,7 @@ Rectangle {
     property real windowHeight: parent ? parent.height : 800
     property bool open: false
     property string selectedCodec: "h264"
-    property string selectedQuality: "Alta qualidade"
+    property string selectedQuality: "High quality"
     property string selectedRatio: "Original"
     property string customRatioValue: "3:2"
     property bool customRatioValid: true
@@ -51,17 +51,17 @@ Rectangle {
     }
     function framingSummary() {
         if (!root.clipBackend.hasVideo) return ""
-        if (root.selectedCodec === "copy") return "sem recorte (vídeo copiado)"
+        if (root.selectedCodec === "copy") return "uncropped (stream copy)"
         const size = root.clipBackend.cropSize
         if (!size.cropped) return "enquadramento original"
-        return "recorte " + root.selectedRatio + " · " + size.width + " × " + size.height
+        return "crop " + root.selectedRatio + " · " + size.width + " × " + size.height
     }
     function encoderSummary() {
-        if (root.selectedCodec === "copy") return "Sem recodificar"
+        if (root.selectedCodec === "copy") return "Stream copy"
         const codecName = ({ h264: "H.264", hevc: "HEVC", av1: "AV1" })[root.selectedCodec] || root.selectedCodec
         const gpuAvailable = root.clipBackend.hardwareEncoderAvailable(root.selectedCodec)
         if (root.clipBackend.preferGpu && !gpuAvailable)
-            return codecName + " · CPU (GPU indisponível)"
+            return codecName + " · CPU (GPU unavailable)"
         const encoder = root.clipBackend.preferGpu
                 ? root.clipBackend.hardwareEncoderName(root.selectedCodec) : "CPU"
         return codecName + " · " + encoder
@@ -99,8 +99,8 @@ Rectangle {
         Row {
             width: parent.width; height: 44
             Column { spacing: 2
-                Text { text: "Exportar clipe"; color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
-                Text { text: root.clipBackend.fileName || "Defina as opções de saída"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: 280 }
+                Text { text: "Export clip"; color: root.tokens.foreground; font.pixelSize: root.tokens.textXl; font.weight: Font.DemiBold }
+                Text { text: root.clipBackend.fileName || "Choose output settings"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideMiddle; width: 280 }
             }
             Item { width: Math.max(0, parent.width - 330); height: 1 }
             ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.closeRequested() }
@@ -116,16 +116,16 @@ Rectangle {
                 width: exportScroll.availableWidth
                 spacing: 14
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Pasta e nome"
+                    width: parent.width; tokens: root.tokens; title: "Folder and file name"
                     detail: root.outputName + "." + root.outputFormat
                     expanded: true
                     Row {
                         width: parent.width; spacing: 6
                         LineEdit {
                             width: parent.width - browseButton.width - 6; tokens: root.tokens
-                            text: root.outputDirectory; placeholderText: "Escolha uma pasta…"; readOnly: true
+                            text: root.outputDirectory; placeholderText: "Choose a folder…"; readOnly: true
                         }
-                        ActionButton { id: browseButton; tokens: root.tokens; text: "Escolher…"; compact: true; onClicked: root.browseRequested() }
+                        ActionButton { id: browseButton; tokens: root.tokens; text: "Browse…"; compact: true; onClicked: root.browseRequested() }
                     }
                     LineEdit {
                         id: outputNameField
@@ -133,7 +133,7 @@ Rectangle {
                         width: parent.width
                         tokens: root.tokens
                         text: root.outputName
-                        placeholderText: "Nome do clipe"
+                        placeholderText: "Clip name"
                         invalid: !root.outputNameValid
                         onEditingFinished: root.outputNameRequested(text)
                     }
@@ -147,14 +147,14 @@ Rectangle {
                 Disclosure {
                     width: parent.width
                     tokens: root.tokens
-                    title: "Vídeo"
-                    detail: root.selectedCodec.toUpperCase() + " · " + (root.selectedCodec === "copy" ? "cópia" : root.selectedQuality)
+                    title: "Video"
+                    detail: root.selectedCodec.toUpperCase() + " · " + (root.selectedCodec === "copy" ? "copy" : root.selectedQuality)
                     expanded: true
                     Text { text: "CODEC"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
                     Flow {
                         width: parent.width; spacing: 6
                         Repeater {
-                            model: [{ id: "h264", name: "H.264" }, { id: "hevc", name: "HEVC" }, { id: "av1", name: "AV1" }, { id: "copy", name: "Sem recodificar" }]
+                            model: [{ id: "h264", name: "H.264" }, { id: "hevc", name: "HEVC" }, { id: "av1", name: "AV1" }, { id: "copy", name: "Stream copy" }]
                             delegate: ActionButton {
                                 required property var modelData
                                 tokens: root.tokens; text: modelData.name; compact: true
@@ -202,15 +202,15 @@ Rectangle {
                         font.pixelSize: root.tokens.textXs
                         wrapMode: Text.WordWrap
                     }
-                    Text { text: "QUALIDADE"; visible: root.selectedCodec !== "copy"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
+                    Text { text: "QUALITY"; visible: root.selectedCodec !== "copy"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
                     Flow {
                         width: parent.width; spacing: 6; visible: root.selectedCodec !== "copy"
                         Repeater {
-                            model: ["Alta qualidade", "Máxima qualidade", "Compacto"]
+                            model: ["High quality", "Maximum quality", "Compact"]
                             delegate: ActionButton {
                                 required property string modelData
                                 tokens: root.tokens
-                                text: modelData === "Alta qualidade" ? "Alta" : modelData === "Máxima qualidade" ? "Máxima" : "Compacto"
+                                text: modelData === "High quality" ? "High" : modelData === "Maximum quality" ? "Maximum" : "Compact"
                                 compact: true; checked: root.selectedQuality === modelData
                                 onClicked: root.qualityChanged(modelData)
                             }
@@ -218,20 +218,20 @@ Rectangle {
                     }
                     Text {
                         visible: root.selectedCodec === "copy"; width: parent.width
-                            text: "Mantém o vídeo original sem recodificar. Enquadramento, qualidade e tamanho-alvo não se aplicam; o corte pode alinhar aos quadros-chave."
+                            text: "Copies the original video without re-encoding. Crop, quality, and target size do not apply. Trim points may snap to keyframes."
                         color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap
                     }
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Enquadramento"
-                    detail: root.selectedCodec === "copy" ? "não se aplica" : root.selectedRatio
+                    width: parent.width; tokens: root.tokens; title: "Crop"
+                    detail: root.selectedCodec === "copy" ? "not applicable" : root.selectedRatio
                     expanded: false
                     Flow {
                         width: parent.width; spacing: 6
                         enabled: root.selectedCodec !== "copy"
                         Repeater {
-                            model: ["Original", "4:3", "16:9", "21:9", "9:16", "1:1", "4:5", "Livre"]
+                            model: ["Original", "4:3", "16:9", "21:9", "9:16", "1:1", "4:5", "Custom"]
                             delegate: ActionButton {
                                 required property string modelData
                                 tokens: root.tokens; text: modelData; compact: true
@@ -243,14 +243,14 @@ Rectangle {
                     LineEdit {
                         id: customRatioInput
                         width: parent.width; tokens: root.tokens
-                        visible: root.selectedRatio === "Livre" && root.selectedCodec !== "copy"
-                        text: root.customRatioValue; placeholderText: "Proporção · ex.: 3:2"
+                        visible: root.selectedRatio === "Custom" && root.selectedCodec !== "copy"
+                        text: root.customRatioValue; placeholderText: "Aspect ratio · e.g. 3:2"
                         invalid: !root.customRatioValid
                         onEditingFinished: root.customRatioChanged(text)
                     }
                     Text {
                         width: parent.width; visible: root.selectedCodec === "copy"
-                        text: "O stream copy mantém as dimensões originais, então o enquadramento fica desativado."
+                        text: "Stream copy preserves the original dimensions, so cropping is disabled."
                         color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap
                     }
                     Connections {
@@ -262,9 +262,9 @@ Rectangle {
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Áudio"
-                    detail: !root.includeAudio ? "Desativado" :
-                            root.clipBackend.hasAudio ? "AAC · 192 kb/s" : "Sem faixa de origem"
+                    width: parent.width; tokens: root.tokens; title: "Audio"
+                    detail: !root.includeAudio ? "Off" :
+                            root.clipBackend.hasAudio ? "AAC · 192 kb/s" : "No source audio"
                     expanded: false
                     Row {
                         width: parent.width; height: 40; spacing: 9
@@ -276,15 +276,15 @@ Rectangle {
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.audioInclusionRequested(!root.includeAudio) }
                         }
                         Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: "Incluir faixa de áudio"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm }
-                            Text { text: root.clipBackend.hasAudio ? "AAC estéreo, 192 kb/s" : "O arquivo não contém áudio"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
+                            Text { text: "Include audio track"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm }
+                            Text { text: root.clipBackend.hasAudio ? "Stereo AAC, 192 kb/s" : "This file has no audio"; color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
                         }
                     }
                 }
 
                 Disclosure {
-                    width: parent.width; tokens: root.tokens; title: "Tamanho-alvo"
-                    detail: root.targetSizeEnabled ? "~" + root.targetSizeValue + " MB" : "Desativado"
+                    width: parent.width; tokens: root.tokens; title: "Target size"
+                    detail: root.targetSizeEnabled ? "~" + root.targetSizeValue + " MB" : "Off"
                     expanded: false; visible: root.selectedCodec !== "copy"
                     Row {
                         width: parent.width; height: 40; spacing: 9
@@ -295,16 +295,16 @@ Rectangle {
                             Rectangle { x: root.targetSizeEnabled ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.targetSizeEnabled ? root.tokens.accent : root.tokens.muted; Behavior on x { NumberAnimation { duration: root.tokens.effectFast } } }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.targetEnabledRequested(!root.targetSizeEnabled) }
                         }
-                        Text { text: "Estimativa de tamanho"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: "Estimated size"; color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
                     }
-                    LineEdit { width: parent.width; tokens: root.tokens; visible: root.targetSizeEnabled; text: root.targetSizeValue; placeholderText: "Tamanho em MB"; onEditingFinished: root.targetValueEdited(text) }
-                    Text { visible: root.targetSizeEnabled; width: parent.width; text: "Bitrate de uma passagem; o tamanho final pode variar."; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap }
+                    LineEdit { width: parent.width; tokens: root.tokens; visible: root.targetSizeEnabled; text: root.targetSizeValue; placeholderText: "Size in MB"; onEditingFinished: root.targetValueEdited(text) }
+                    Text { visible: root.targetSizeEnabled; width: parent.width; text: "Single-pass encoding; final size may vary."; color: root.tokens.muted; font.pixelSize: root.tokens.textXs; wrapMode: Text.WordWrap }
                 }
 
                 Disclosure {
                     width: parent.width
                     tokens: root.tokens
-                    title: "Fila de exportação"
+                    title: "Export queue"
                     detail: root.clipBackend.queuedExportCount + " pendente(s)"
                     expanded: false
                     visible: root.clipBackend.queuedExports.length > 0
@@ -318,8 +318,8 @@ Rectangle {
                             Text {
                                 width: parent.width - 104
                                 text: modelData.name + " · " + ({
-                                    queued: "Pendente", exporting: "Exportando", done: "Concluído",
-                                    failed: "Falhou", cancelled: "Cancelado"
+                                    queued: "Queued", exporting: "Exporting", done: "Completed",
+                                    failed: "Failed", cancelled: "Canceled"
                                 })[modelData.status]
                                 color: root.tokens.foreground
                                 font.pixelSize: root.tokens.textXs
@@ -328,7 +328,7 @@ Rectangle {
                             }
                             ActionButton {
                                 tokens: root.tokens
-                                text: "Remover"
+                                text: "Remove"
                                 compact: true
                                 visible: modelData.status === "queued"
                                 onClicked: root.removeQueueRequested(modelData.id)
@@ -340,7 +340,7 @@ Rectangle {
                         spacing: 6
                         ActionButton {
                             tokens: root.tokens
-                            text: root.clipBackend.exportQueueRunning ? "Exportando fila…" : "Exportar fila"
+                            text: root.clipBackend.exportQueueRunning ? "Processing queue…" : "Run queue"
                             compact: true
                             kind: "primary"
                             enabled: root.clipBackend.queuedExportCount > 0 && !root.clipBackend.exportQueueRunning
@@ -348,7 +348,7 @@ Rectangle {
                         }
                         ActionButton {
                             tokens: root.tokens
-                            text: "Limpar concluídos/fila"
+                            text: "Clear finished jobs"
                             compact: true
                             enabled: root.clipBackend.queuedExports.length > 0
                             onClicked: root.clearQueueRequested()
@@ -391,7 +391,7 @@ Rectangle {
                     width: parent.width
                     text: root.encoderSummary() + " · " + Math.round(root.clipBackend.fps) + " fps · " +
                           root.outputFormat.toUpperCase() +
-                          (root.includeAudio && root.clipBackend.hasAudio ? " · AAC" : " · sem áudio")
+                          (root.includeAudio && root.clipBackend.hasAudio ? " · AAC" : " · no audio")
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
                     elide: Text.ElideRight
@@ -406,8 +406,8 @@ Rectangle {
                 }
                 Text {
                     text: root.targetSizeEnabled && root.selectedCodec !== "copy"
-                          ? "Tamanho-alvo aproximado: " + root.targetSizeValue + " MB"
-                          : "Tamanho final variável conforme o conteúdo"
+                          ? "Target size aproximado: " + root.targetSizeValue + " MB"
+                          : "Final size depends on the content"
                     color: root.tokens.muted
                     font.pixelSize: root.tokens.textXs
                     elide: Text.ElideRight
@@ -419,7 +419,7 @@ Rectangle {
             width: parent.width; height: 40; spacing: 6
             ActionButton {
                 tokens: root.tokens
-                text: "Adicionar à fila"
+                text: "Add to queue"
                 compact: true
                 kind: "tonal"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
@@ -428,7 +428,7 @@ Rectangle {
             }
             ActionButton {
                 tokens: root.tokens
-                text: root.clipBackend.busy ? "Cancelando…" : "Exportar vídeo"
+                text: root.clipBackend.busy ? "Canceling…" : "Export video"
                 symbol: "↗"; kind: "primary"
                 enabled: root.clipBackend.hasVideo && !root.clipBackend.busy
                 width: (parent.width - parent.spacing) / 2

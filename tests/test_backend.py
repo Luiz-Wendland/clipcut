@@ -67,18 +67,18 @@ class BackendTests(unittest.TestCase):
                                       "renderNode": ""}]
         self.backend._encoders.update({"h264_nvenc", "hevc_nvenc", "av1_nvenc"})
         gpu_command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                                "Alta qualidade", True)
+                                                "High quality", True)
         cpu_command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                                "Alta qualidade", False)
+                                                "High quality", False)
         self.assertEqual(gpu_command[gpu_command.index("-c:v") + 1], "h264_nvenc")
         self.assertEqual(cpu_command[cpu_command.index("-c:v") + 1], "libx264")
         self.assertTrue(self.backend.hardwareEncoderAvailable("h264"))
         self.assertFalse(self.backend.hardwareEncoderAvailable("av1"))
-        with self.assertRaisesRegex(ValueError, "não oferece codificação AV1"):
+        with self.assertRaisesRegex(ValueError, "does not support hardware AV1 encoding"):
             self.backend._command("out.mp4", "av1", "Original", "3:2",
-                                  "Alta qualidade", True)
+                                  "High quality", True)
         av1_command, _ = self.backend._command("out.mp4", "av1", "Original", "3:2",
-                                                "Alta qualidade", False)
+                                                "High quality", False)
         self.assertEqual(av1_command[av1_command.index("-c:v") + 1], "libsvtav1")
 
     def test_amd_vaapi_command_uploads_frames_to_gpu(self):
@@ -87,7 +87,7 @@ class BackendTests(unittest.TestCase):
         self.backend._encoders.add("h264_vaapi")
         with patch("main.os.access", return_value=True):
             command, _ = self.backend._command("out.mp4", "h264", "4:3", "3:2",
-                                                "Alta qualidade", True)
+                                                "High quality", True)
         self.assertEqual(command[command.index("-c:v") + 1], "h264_vaapi")
         self.assertEqual(command[command.index("-vaapi_device") + 1], "/dev/dri/renderD128")
         self.assertIn("crop=1440:1080:240:0,format=nv12,hwupload=extra_hw_frames=64",
@@ -99,7 +99,7 @@ class BackendTests(unittest.TestCase):
         self.backend._encoders.add("h264_qsv")
         with patch("main.os.access", return_value=True):
             command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                                "Alta qualidade", True)
+                                                "High quality", True)
         self.assertEqual(command[command.index("-c:v") + 1], "h264_qsv")
         self.assertIn("vaapi=va:/dev/dri/renderD129", command)
         self.assertIn("qsv=hw@va", command)
@@ -107,16 +107,16 @@ class BackendTests(unittest.TestCase):
                       command[command.index("-vf") + 1])
 
     def test_ratio_validation(self):
-        # "Original" follows the source, the presets are fixed and "Livre"
+        # "Original" follows the source, the presets are fixed and "Custom"
         # only accepts the custom field.
         self.assertAlmostEqual(self.backend._target_dar("Original", "3:2"), 16 / 9)
         self.assertAlmostEqual(self.backend._target_dar("4:3", "3:2"), 4 / 3)
         self.assertAlmostEqual(self.backend._target_dar("9:16", "3:2"), 9 / 16)
         self.assertAlmostEqual(self.backend._target_dar("1:1", "3:2"), 1)
         self.assertAlmostEqual(self.backend._target_dar("4:5", "3:2"), 4 / 5)
-        self.assertAlmostEqual(self.backend._target_dar("Livre", "3:2"), 3 / 2)
+        self.assertAlmostEqual(self.backend._target_dar("Custom", "3:2"), 3 / 2)
         self.assertIsNone(self.backend._target_dar("bad", "3:2"))
-        self.assertIsNone(self.backend._target_dar("Livre", "bad"))
+        self.assertIsNone(self.backend._target_dar("Custom", "bad"))
 
     def test_parse_ratio_accepts_only_bounded_integers(self):
         self.assertEqual(parse_ratio("16:9"), (16, 9))
@@ -137,7 +137,7 @@ class BackendTests(unittest.TestCase):
             with self.subTest(ratio=ratio):
                 self.backend.setCropRatio(ratio, "3:2")
                 command, _ = self.backend._command("out.mp4", "h264", ratio, "3:2",
-                                                    "Alta qualidade", False)
+                                                    "High quality", False)
                 if "-vf" in command:
                     filter_value = command[command.index("-vf") + 1]
                     width, height = (int(v) for v in filter_value[len("crop="):].split(":")[:2])
@@ -152,28 +152,28 @@ class BackendTests(unittest.TestCase):
     def test_custom_ratio_preview_matches_the_export(self):
         for custom in ("3:2", "5:4", "21:9"):
             with self.subTest(custom=custom):
-                self.backend.setCropRatio("Livre", custom)
-                command, _ = self.backend._command("out.mp4", "h264", "Livre", custom,
-                                                    "Alta qualidade", False)
+                self.backend.setCropRatio("Custom", custom)
+                command, _ = self.backend._command("out.mp4", "h264", "Custom", custom,
+                                                    "High quality", False)
                 filter_value = command[command.index("-vf") + 1]
                 width, height = (int(v) for v in filter_value[len("crop="):].split(":")[:2])
                 target_w, target_h = (int(v) for v in custom.split(":"))
                 self.assertLess(abs((width / height) / (target_w / target_h) - 1), 0.002)
 
     def test_invalid_custom_ratio_never_reshapes_the_frame(self):
-        self.backend.setCropRatio("Livre", "abc")
+        self.backend.setCropRatio("Custom", "abc")
         self.assertEqual(self.backend.cropRect["width"], 1.0)
         self.assertEqual(self.backend.cropRect["height"], 1.0)
-        with self.assertRaisesRegex(ValueError, "Proporção livre inválida"):
-            self.backend._command("out.mp4", "h264", "Livre", "abc",
-                                  "Alta qualidade", False)
+        with self.assertRaisesRegex(ValueError, "Invalid custom aspect ratio"):
+            self.backend._command("out.mp4", "h264", "Custom", "abc",
+                                  "High quality", False)
 
     def test_near_by_source_aspect_is_still_cropped_to_the_preset(self):
         # 1000x563 is 0.09% away from 16:9: the preset must still be honoured.
         self.backend._width, self.backend._height = 1000, 563
         self.backend.setCropRatio("16:9", "3:2")
         command, _ = self.backend._command("out.mp4", "h264", "16:9", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         width, height = (int(v) for v in command[command.index("-vf") + 1]
                          [len("crop="):].split(":")[:2])
         self.assertEqual((width, height), (1000, 562))
@@ -184,7 +184,7 @@ class BackendTests(unittest.TestCase):
         self.backend._sample_aspect = 16 / 15
         self.backend.setCropRatio("1:1", "3:2")
         command, _ = self.backend._command("out.mp4", "h264", "1:1", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         width, height = (int(v) for v in command[command.index("-vf") + 1]
                          [len("crop="):].split(":")[:2])
         # 540x576 pixels with the 16:15 sample aspect displays as 1:1.
@@ -202,7 +202,7 @@ class BackendTests(unittest.TestCase):
         self.backend._width, self.backend._height = 1080, 1920
         self.backend.setCropRatio("21:9", "3:2")
         command, _ = self.backend._command("out.mp4", "h264", "21:9", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         width, height = (int(v) for v in command[command.index("-vf") + 1]
                          [len("crop="):].split(":")[:2])
         self.assertEqual(width, 1080)
@@ -212,7 +212,7 @@ class BackendTests(unittest.TestCase):
         self.backend.setCropRatio("9:16", "3:2")
         size = self.backend.cropSize
         command, _ = self.backend._command("out.mp4", "h264", "9:16", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         width, height = (int(v) for v in command[command.index("-vf") + 1]
                          [len("crop="):].split(":")[:2])
         self.assertEqual((size["width"], size["height"]), (width, height))
@@ -244,51 +244,51 @@ class BackendTests(unittest.TestCase):
         for ratio, crop_filter in expected.items():
             with self.subTest(ratio=ratio):
                 command, _ = self.backend._command("out.mp4", "h264", ratio, "3:2",
-                                                    "Alta qualidade", False)
+                                                    "High quality", False)
                 self.assertEqual(command[command.index("-vf") + 1], crop_filter)
 
     def test_crop_dimensions_are_even_and_exact_for_4_3_case(self):
         command, _ = self.backend._command("out.mp4", "h264", "4:3", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         self.assertEqual(command[command.index("-vf") + 1], "crop=1440:1080:240:0")
 
     def test_odd_source_dimensions_are_made_encoder_safe(self):
         self.backend._width, self.backend._height = 1921, 1081
         command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                            "Alta qualidade", False)
+                                            "High quality", False)
         self.assertEqual(command[command.index("-vf") + 1], "crop=1920:1080:0:0")
 
     def test_custom_crop_and_reposition(self):
-        self.backend.setCropRatio("Livre", "3:2")
+        self.backend.setCropRatio("Custom", "3:2")
         initial = self.backend.cropRect
         self.backend.moveCrop(0.6, 0.5)
         moved = self.backend.cropRect
         self.assertLess(moved["x"], initial["x"] + 0.1)
-        command, _ = self.backend._command("out.mp4", "h264", "Livre", "3:2",
-                                            "Alta qualidade", False)
+        command, _ = self.backend._command("out.mp4", "h264", "Custom", "3:2",
+                                            "High quality", False)
         self.assertIn("crop=1620:1080:", command[command.index("-vf") + 1])
 
     def test_invalid_custom_ratio_and_copy_crop_are_rejected(self):
-        with self.assertRaisesRegex(ValueError, "Proporção livre inválida"):
-            self.backend._command("out.mp4", "h264", "Livre", "x:y",
-                                  "Alta qualidade", False)
-        with self.assertRaisesRegex(ValueError, "Copiar vídeo"):
+        with self.assertRaisesRegex(ValueError, "Invalid custom aspect ratio"):
+            self.backend._command("out.mp4", "h264", "Custom", "x:y",
+                                  "High quality", False)
+        with self.assertRaisesRegex(ValueError, "Stream copy"):
             self.backend._command("out.mp4", "copy", "4:3", "3:2",
-                                  "Alta qualidade", False)
+                                  "High quality", False)
 
     def test_target_size_uses_bitrate_and_rejects_stream_copy(self):
         command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                            "Alta qualidade", False, 20)
+                                            "High quality", False, 20)
         bitrate = int(command[command.index("-b:v") + 1])
         self.assertGreater(bitrate, 1_000_000)
         with self.assertRaisesRegex(ValueError, "stream copy"):
             self.backend._command("out.mp4", "copy", "Original", "3:2",
-                                  "Alta qualidade", False, 20)
+                                  "High quality", False, 20)
 
     def test_export_can_exclude_audio(self):
         self.backend._audio = True
         command, _ = self.backend._command("out.mp4", "h264", "Original", "3:2",
-                                            "Alta qualidade", False, include_audio=False)
+                                            "High quality", False, include_audio=False)
         self.assertIn("-an", command)
         self.assertNotIn("0:a?", command)
         self.assertNotIn("-c:a", command)
@@ -409,8 +409,8 @@ ForegroundNormal=#e2e4fc
             errors = []
             self.backend.exportDone.connect(lambda success, message: errors.append(message))
             self.backend.exportFile(path, "h264", "Original", "3:2",
-                                    "Alta qualidade", False)
-            self.assertIn("já existe", errors[-1])
+                                    "High quality", False)
+            self.assertIn("already exists", errors[-1])
             with open(path, "rb") as output:
                 self.assertEqual(output.read(), b"keep")
 
@@ -419,8 +419,8 @@ ForegroundNormal=#e2e4fc
         errors = []
         self.backend.exportDone.connect(lambda success, message: errors.append(message))
         self.backend.exportFile(self.backend._path, "h264", "Original", "3:2",
-                                "Alta qualidade", False)
-        self.assertIn("original", errors[-1])
+                                "High quality", False)
+        self.assertIn("source video", errors[-1])
 
     def test_second_export_does_not_replace_active_worker(self):
         worker = object()
@@ -431,11 +431,11 @@ ForegroundNormal=#e2e4fc
         try:
             with patch.object(self.backend, "_launch_export_job") as launch:
                 self.backend.exportFile("another.mp4", "h264", "Original", "3:2",
-                                        "Alta qualidade", False)
+                                        "High quality", False)
                 launch.assert_not_called()
             self.assertIs(self.backend._export_task, worker)
             self.assertFalse(results[-1][0])
-            self.assertIn("Aguarde", results[-1][1])
+            self.assertIn("Wait for the current export", results[-1][1])
         finally:
             self.backend._export_task = None
             self.backend._set_exporting(False)
@@ -461,7 +461,7 @@ ForegroundNormal=#e2e4fc
                 popen.return_value.wait.return_value = 0
                 task.run()
 
-            self.assertEqual(results, [(False, "Exportação cancelada")])
+            self.assertEqual(results, [(False, "Export canceled")])
             self.assertEqual(destination.read_bytes(), b"original destination")
             self.assertFalse(temporary.exists())
 
@@ -473,7 +473,7 @@ ForegroundNormal=#e2e4fc
             results = []
             self.backend.exportDone.connect(lambda success, message: results.append((success, message)))
             self.backend.exportFile(path, "h264", "Original", "3:2",
-                                    "Alta qualidade", False, True)
+                                    "High quality", False, True)
             deadline = time.monotonic() + 10
             while not results and time.monotonic() < deadline:
                 APP.processEvents()
@@ -489,18 +489,18 @@ ForegroundNormal=#e2e4fc
             first = os.path.join(directory, "first.mp4")
             second = os.path.join(directory, "second.mp4")
             self.assertTrue(self.backend.enqueueExport(
-                first, "h264", "Original", "3:2", "Alta qualidade", False, 0, False))
+                first, "h264", "Original", "3:2", "High quality", False, 0, False))
             first_job = self.backend._export_queue[0]
             self.backend.setRange(2, 4)
             self.assertTrue(self.backend.enqueueExport(
-                second, "h264", "Original", "3:2", "Alta qualidade", False, 0, False))
+                second, "h264", "Original", "3:2", "High quality", False, 0, False))
             second_job = self.backend._export_queue[1]
 
             self.assertEqual(first_job["command"][first_job["command"].index("-ss") + 1], "1.000000")
             self.assertEqual(second_job["command"][second_job["command"].index("-ss") + 1], "2.000000")
             self.assertEqual(self.backend.queuedExportCount, 2)
             self.assertFalse(self.backend.enqueueExport(
-                first, "h264", "Original", "3:2", "Alta qualidade", False, 0, False))
+                first, "h264", "Original", "3:2", "High quality", False, 0, False))
             self.backend.removeQueuedExport(first_job["id"])
             self.assertEqual(self.backend.queuedExportCount, 1)
             self.backend.clearExportQueue()
@@ -526,7 +526,7 @@ ForegroundNormal=#e2e4fc
             destinations = [os.path.join(directory, f"cut-{index}.mp4") for index in (1, 2)]
             for destination in destinations:
                 self.assertTrue(self.backend.enqueueExport(
-                    destination, "h264", "Original", "3:2", "Alta qualidade", False, 0, False))
+                    destination, "h264", "Original", "3:2", "High quality", False, 0, False))
 
             self.backend.startExportQueue()
             deadline = time.monotonic() + 30

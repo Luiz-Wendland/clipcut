@@ -25,9 +25,9 @@ from PySide6.QtQml import QQmlApplicationEngine
 
 
 QUALITY = {
-    "Alta qualidade": {"h264": 18, "hevc": 20, "av1": 30, "nvenc": 19},
-    "Máxima qualidade": {"h264": 15, "hevc": 17, "av1": 25, "nvenc": 16},
-    "Compacto": {"h264": 23, "hevc": 26, "av1": 36, "nvenc": 25},
+    "High quality": {"h264": 18, "hevc": 20, "av1": 30, "nvenc": 19},
+    "Maximum quality": {"h264": 15, "hevc": 17, "av1": 25, "nvenc": 16},
+    "Compact": {"h264": 23, "hevc": 26, "av1": 36, "nvenc": 25},
 }
 
 # Backends register themselves so the worker threads are always stopped,
@@ -108,7 +108,7 @@ class Task(QObject):
                         except ProcessLookupError:
                             pass
                         stdout, stderr = self.process.communicate()
-                    raise RuntimeError("Operação cancelada")
+                    raise RuntimeError("Operation canceled")
                 if deadline is not None and time.monotonic() >= deadline:
                     try:
                         self.process.kill()
@@ -193,9 +193,9 @@ class ExportTask(QObject):
 
             code, error = execute(self.command)
             if self.cancelled.is_set():
-                self.done.emit(False, "Exportação cancelada")
+                self.done.emit(False, "Export canceled")
             elif code:
-                self.done.emit(False, error.strip()[-2500:] or f"FFmpeg terminou com código {code}")
+                self.done.emit(False, error.strip()[-2500:] or f"FFmpeg exited with code {code}")
             else:
                 check = capture(["ffprobe", "-v", "error", "-count_packets",
                                  "-show_entries", "stream=codec_type,nb_read_packets",
@@ -207,13 +207,13 @@ class ExportTask(QObject):
                 except (ValueError, TypeError):
                     has_video = False
                 if check.returncode or not has_video:
-                    raise RuntimeError(check.stderr.strip() or "O arquivo exportado não contém vídeo válido")
+                    raise RuntimeError(check.stderr.strip() or "The exported file does not contain valid video")
                 if self.cancelled.is_set():
-                    self.done.emit(False, "Exportação cancelada")
+                    self.done.emit(False, "Export canceled")
                     return
                 os.replace(self.temp_path, self.output_path)
                 self.progress.emit(100)
-                self.done.emit(True, "Exportação concluída")
+                self.done.emit(True, "Export complete")
         except Exception as e:
             self.done.emit(False, str(e))
         finally:
@@ -282,7 +282,7 @@ class ClipBackend(QObject):
         self._waveform_status = "empty"
         self._busy = False
         self._exporting = False
-        self._status = "Abra um vídeo ou arraste-o para esta janela"
+        self._status = "Open a video or drop it here"
         self._progress = 0
         self._gpu_devices = self._detect_gpu_devices()
         self._palette = self._read_palette()
@@ -668,7 +668,7 @@ class ClipBackend(QObject):
     @Property(str, notify=gpuChanged)
     def gpuName(self):
         if not self._gpu_name:
-            return "GPU não detectada"
+            return "No GPU detected"
         apis = []
         codecs = []
         for codec, label in (("h264", "H.264"), ("hevc", "HEVC"), ("av1", "AV1")):
@@ -678,7 +678,7 @@ class ClipBackend(QObject):
                     apis.append(selected["api"])
                 codecs.append(label)
         if not apis:
-            return f"{self._gpu_name} · encoder de hardware indisponível no FFmpeg"
+            return f"{self._gpu_name} · hardware encoder unavailable in FFmpeg"
         api_text = " / ".join(self._gpu_api_label(api) for api in apis)
         return f"{self._gpu_name} · {api_text} · {', '.join(codecs)}"
 
@@ -697,13 +697,13 @@ class ClipBackend(QObject):
             return ""
         if codec == "av1" and self._gpu_devices and not any(
                 self._supports_hardware_av1(device) for device in self._gpu_devices):
-            return "Esta GPU não oferece codificação AV1 por hardware; será usada a CPU."
-        return "Encoder de GPU indisponível para este codec nesta instalação. Será usada a CPU."
+            return "This GPU does not support hardware AV1 encoding. Using the CPU instead."
+        return "No hardware encoder is available for this codec in this installation. Using the CPU instead."
 
     @Slot(result=str)
     def diagnosticReport(self):
         ffmpeg = shutil.which("ffmpeg")
-        version = "indisponível"
+        version = "unavailable"
         if ffmpeg:
             try:
                 result = capture([ffmpeg, "-hide_banner", "-version"], 5)
@@ -712,29 +712,29 @@ class ClipBackend(QObject):
             except (OSError, subprocess.SubprocessError):
                 pass
         lines = [
-            "ClipCut — diagnóstico de exportação",
+            "ClipCut — export diagnostics",
             f"Sistema: {platform.system()} ({sys.platform})",
             f"Python: {platform.python_version()}",
             f"FFmpeg: {version}",
             "",
-            "Encoders disponíveis:",
+            "Available encoders:",
         ]
         for codec, label in (("h264", "H.264"), ("hevc", "HEVC"), ("av1", "AV1")):
             cpu_encoder = {"h264": "libx264", "hevc": "libx265", "av1": "libsvtav1"}[codec]
             hardware = self._hardware_encoder_for(codec)
-            cpu = cpu_encoder if cpu_encoder in self._encoders else "indisponível"
+            cpu = cpu_encoder if cpu_encoder in self._encoders else "unavailable"
             if hardware:
                 device = hardware["device"].get("name", "GPU")
                 lines.append(f"- {label}: {hardware['encoder']} ({device}); CPU: {cpu}")
             else:
-                lines.append(f"- {label}: CPU {cpu}; GPU: indisponível")
-        lines.extend(("", "O relatório não inclui caminhos de arquivos de mídia."))
+                lines.append(f"- {label}: CPU {cpu}; GPU: unavailable")
+        lines.extend(("", "This report does not include media file paths."))
         return "\n".join(lines)
 
     @Slot()
     def copyDiagnosticReport(self):
         QGuiApplication.clipboard().setText(self.diagnosticReport())
-        self._set_status("Diagnóstico copiado para a área de transferência.")
+        self._set_status("Diagnostics copied to the clipboard.")
 
     @Property("QVariantMap", notify=paletteChanged)
     def themePalette(self):
@@ -745,7 +745,7 @@ class ClipBackend(QObject):
         if url.isLocalFile():
             self.loadFile(url.toLocalFile())
         else:
-            self._set_status("Abra um arquivo de vídeo local.")
+            self._set_status("Open a local video file.")
 
     @Slot(str)
     def openLocalUrl(self, value: str):
@@ -753,7 +753,7 @@ class ClipBackend(QObject):
         if url.isLocalFile():
             self.loadFile(url.toLocalFile())
         else:
-            self._set_status("Abra um arquivo de vídeo local.")
+            self._set_status("Open a local video file.")
 
     @Slot(str, result=str)
     def localPath(self, value: str):
@@ -764,10 +764,10 @@ class ClipBackend(QObject):
     def loadFile(self, path: str):
         path = os.path.abspath(path.strip())
         if not os.path.isfile(path):
-            self._set_status("Não encontrei esse arquivo. Escolha um vídeo local.")
+            self._set_status("File not found. Choose a local video file.")
             return
         if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-            self._set_status("FFmpeg e ffprobe precisam estar instalados e no PATH.")
+            self._set_status("FFmpeg and ffprobe must be installed and on your PATH.")
             return
         self._generation += 1
         generation = self._generation
@@ -794,20 +794,20 @@ class ClipBackend(QObject):
         self.positionChanged.emit()
         self.previewChanged.emit()
         self.waveformChanged.emit()
-        self._set_status("Lendo vídeo…")
+        self._set_status("Loading video…")
 
         def probe(task):
             p = task.run_process(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", path], text=True)
             if p.returncode:
-                raise RuntimeError(p.stderr.strip() or "ffprobe não conseguiu ler o arquivo")
+                raise RuntimeError(p.stderr.strip() or "ffprobe could not read the file")
             data = json.loads(p.stdout)
             video = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
             if not video:
-                raise RuntimeError("O arquivo não contém vídeo.")
+                raise RuntimeError("The file does not contain a video track.")
             audio = any(s.get("codec_type") == "audio" for s in data.get("streams", []))
             duration = float(video.get("duration") or data.get("format", {}).get("duration") or 0)
             if duration <= 0:
-                raise RuntimeError("Não foi possível determinar a duração do vídeo.")
+                raise RuntimeError("Could not determine the video duration.")
             rate = video.get("avg_frame_rate") or video.get("r_frame_rate") or "0/1"
             try:
                 a, b = rate.split("/", 1)
@@ -879,7 +879,7 @@ class ClipBackend(QObject):
             self.previewChanged.emit()
             self.waveformChanged.emit()
             self._set_busy(False)
-            self._set_status("Falha ao abrir o vídeo")
+            self._set_status("Could not open the video")
             self.exportDone.emit(False, error)
             return
         self._duration = data["duration"]
@@ -894,7 +894,7 @@ class ClipBackend(QObject):
         self.mediaChanged.emit()
         self.rangeChanged.emit()
         self.positionChanged.emit()
-        self._set_status("Gerando miniaturas…")
+        self._set_status("Generating thumbnails…")
         path, duration, has_audio = self._path, self._duration, self._audio
 
         def make_thumbnails(task):
@@ -912,7 +912,7 @@ class ClipBackend(QObject):
             p = task.run_process(args, timeout=120)
             image_paths = sorted(Path(self._tmp.name).glob(f"timeline-{generation}-*.jpg"))
             if p.returncode or not image_paths:
-                raise RuntimeError(p.stderr.decode(errors="replace") or "Não consegui criar a timeline")
+                raise RuntimeError(p.stderr.decode(errors="replace") or "Could not build the timeline")
             sample_span = duration / len(image_paths)
             return [{"url": QUrl.fromLocalFile(str(image)).toString(),
                      "time": sample_span * (index + .5), "span": sample_span}
@@ -931,7 +931,7 @@ class ClipBackend(QObject):
                 wave = task.run_process(waveform_args, timeout=120)
                 if wave.returncode or not os.path.isfile(waveform_path):
                     message = wave.stderr.decode(errors="replace").strip()
-                    raise RuntimeError(message or "Não consegui gerar a waveform")
+                    raise RuntimeError(message or "Could not generate the waveform")
                 return QUrl.fromLocalFile(waveform_path).toString()
 
             self._run_task(make_waveform, self._waveform_done, generation, "waveform")
@@ -943,12 +943,12 @@ class ClipBackend(QObject):
             return
         if error:
             self._thumbnail_status = "error"
-            self._set_status(f"Timeline indisponível: {error[:180]}")
+            self._set_status(f"Timeline unavailable: {error[:180]}")
         else:
             self._thumbnails = result
             self._thumbnail_status = "ready"
             self.previewChanged.emit()
-            self._set_status("Pronto para cortar")
+            self._set_status("Ready to trim")
         if error:
             self.previewChanged.emit()
         self._set_busy(False)
@@ -961,7 +961,7 @@ class ClipBackend(QObject):
             self._waveform_status = "error"
             self.waveformChanged.emit()
             # Keep the failure visible without hiding successfully generated thumbnails.
-            self._set_status(f"Pronto para cortar · waveform indisponível: {error[:120]}")
+            self._set_status(f"Ready to trim · waveform unavailable: {error[:120]}")
             return
         self._waveform = result
         self._waveform_status = "ready"
@@ -988,7 +988,7 @@ class ClipBackend(QObject):
                     "-q:v", "3", "-y", preview_path]
             p = task.run_process(args, timeout=30)
             if p.returncode or not os.path.isfile(preview_path):
-                raise RuntimeError(p.stderr.decode(errors="replace") or "Quadro indisponível")
+                raise RuntimeError(p.stderr.decode(errors="replace") or "Frame unavailable")
             return (request_id, QUrl.fromLocalFile(preview_path).toString() + f"?v={generation}-{request_id}")
 
         self._cancel_background_tasks("preview")
@@ -1063,7 +1063,7 @@ class ClipBackend(QObject):
         """Aspect ratio requested by the user, or None when the input is invalid."""
         if ratio == "Original":
             return self._source_dar()
-        parsed = parse_ratio(custom_ratio if ratio == "Livre" else ratio)
+        parsed = parse_ratio(custom_ratio if ratio == "Custom" else ratio)
         if not parsed:
             return None
         return parsed[0] / parsed[1]
@@ -1137,21 +1137,21 @@ class ClipBackend(QObject):
     def _command(self, output, codec, ratio, custom_ratio, quality, use_gpu,
                  target_size_mb=0, include_audio=True):
         if self._end - self._start < .03:
-            raise ValueError("Selecione um trecho com pelo menos 0,03 segundo.")
+            raise ValueError("Select at least 0.03 seconds of video.")
         if not math.isfinite(target_size_mb) or target_size_mb < 0:
-            raise ValueError("Tamanho-alvo inválido.")
-        if ratio == "Livre":
+            raise ValueError("Invalid target size.")
+        if ratio == "Custom":
             if not parse_ratio(custom_ratio):
-                raise ValueError("Proporção livre inválida. Exemplo: 3:2.")
+                raise ValueError("Invalid custom aspect ratio. Example: 3:2.")
         elif ratio != "Original" and not parse_ratio(ratio):
-            raise ValueError("Proporção inválida.")
+            raise ValueError("Invalid aspect ratio.")
         crop_rect = self._crop_geometry(ratio, custom_ratio)
         crop = crop_rect["width"] < .9999 or crop_rect["height"] < .9999
         needs_even_dimensions = codec != "copy" and (self._width % 2 or self._height % 2)
         if codec == "copy" and crop:
-            raise ValueError("Copiar vídeo não permite alterar o enquadramento. Escolha um encoder.")
+            raise ValueError("Stream copy does not support cropping. Choose an encoder.")
         if target_size_mb and (codec == "copy" or target_size_mb <= 0):
-            raise ValueError("Tamanho-alvo requer um encoder, não stream copy.")
+            raise ValueError("Target size requires an encoder, not stream copy.")
         hardware = self._hardware_encoder_for(codec) if use_gpu and codec != "copy" else None
         if use_gpu and codec != "copy" and not hardware:
             raise ValueError(self.hardwareEncoderStatus(codec))
@@ -1160,9 +1160,9 @@ class ClipBackend(QObject):
         encoder = "copy" if codec == "copy" else hardware["encoder"] if hardware else {
             "h264": "libx264", "hevc": "libx265", "av1": "libsvtav1"}.get(codec)
         if not encoder:
-            raise ValueError("Codec de vídeo desconhecido.")
+            raise ValueError("Unknown video codec.")
         if codec != "copy" and encoder not in self._encoders:
-            raise ValueError(f"O encoder {encoder} não está disponível nesta instalação do FFmpeg.")
+            raise ValueError(f"The {encoder} encoder is not available in this FFmpeg installation.")
 
         command = ["ffmpeg", "-hide_banner", "-y"]
         if api == "vaapi":
@@ -1197,7 +1197,7 @@ class ClipBackend(QObject):
             command += ["-vf", ",".join(video_filters)]
         if codec == "copy":
             command += ["-c:v", "copy"]
-            actual_encoder = "vídeo copiado (sem recodificar)"
+            actual_encoder = "stream copy (no re-encoding)"
         else:
             qkey = "nvenc" if api == "nvenc" else codec
             q = QUALITY[quality][qkey]
@@ -1207,7 +1207,7 @@ class ClipBackend(QObject):
                 audio_rate = 192_000 if self._audio and include_audio else 0
                 video_rate = int((target_size_mb * 8_000_000 * .96) / duration - audio_rate)
                 if video_rate < 16_000:
-                    raise ValueError("Tamanho-alvo muito pequeno para este trecho.")
+                    raise ValueError("The target size is too small for this selection.")
                 command += ["-b:v", str(video_rate)]
                 if api == "nvenc":
                     command += ["-preset", "p5", "-tune", "hq", "-rc", "vbr",
@@ -1252,17 +1252,17 @@ class ClipBackend(QObject):
         try:
             target_size_mb = float(target_size_mb)
         except (TypeError, ValueError):
-            return None, "Tamanho-alvo inválido."
+            return None, "Invalid target size."
         output = QUrl(output).toLocalFile() if output.startswith("file:") else output
         output = os.path.abspath(output)
         if not output.lower().endswith((".mp4", ".mkv")):
             output += ".mp4"
         if os.path.realpath(output) == os.path.realpath(self._path):
-            return None, "O arquivo de saída não pode ser o vídeo original."
+            return None, "The output cannot overwrite the source video."
         if os.path.exists(output) and not overwrite:
-            return None, "O arquivo já existe. Confirme a substituição antes de exportar."
+            return None, "The output file already exists. Confirm replacement before exporting."
         if not os.path.isdir(os.path.dirname(output)):
-            return None, "A pasta de destino não existe."
+            return None, "The output folder does not exist."
         try:
             command, encoder = self._command(output, codec, ratio, custom_ratio, quality,
                                              use_gpu, target_size_mb, include_audio)
@@ -1277,7 +1277,7 @@ class ClipBackend(QObject):
                    quality: str, use_gpu: bool, overwrite: bool = False,
                    target_size_mb: float = 0.0, include_audio: bool = True):
         if self._shutting_down or self._exporting or self._queue_running:
-            self.exportDone.emit(False, "Aguarde a exportação atual terminar.")
+            self.exportDone.emit(False, "Wait for the current export to finish.")
             return
         job, error = self._prepare_export_job(output, codec, ratio, custom_ratio, quality,
                                               use_gpu, overwrite, target_size_mb, include_audio)
@@ -1297,13 +1297,13 @@ class ClipBackend(QObject):
         output_key = os.path.normcase(os.path.realpath(job["output"]))
         if any(os.path.normcase(os.path.realpath(queued["output"])) == output_key
                for queued in self._export_queue):
-            self.exportDone.emit(False, "Esse destino já está na fila.")
+            self.exportDone.emit(False, "This output path is already queued.")
             return False
         job.update(id=self._next_queue_id, status="queued")
         self._next_queue_id += 1
         self._export_queue.append(job)
         self.exportQueueChanged.emit()
-        self.exportDone.emit(True, f"{job['name']} adicionado à fila.")
+        self.exportDone.emit(True, f"{job['name']} added to the queue.")
         return True
 
     @Slot(int)
@@ -1324,7 +1324,7 @@ class ClipBackend(QObject):
         if self._queue_running or self._exporting:
             return
         if not any(job["status"] == "queued" for job in self._export_queue):
-            self._set_status("A fila não tem exportações pendentes.")
+            self._set_status("No exports are queued.")
             return
         self._queue_running = True
         self.exportQueueChanged.emit()
@@ -1337,13 +1337,13 @@ class ClipBackend(QObject):
         if job is None:
             self._queue_running = False
             self.exportQueueChanged.emit()
-            self._set_status("Fila de exportação concluída.")
+            self._set_status("Export queue complete.")
             return
         if os.path.exists(job["output"]):
             job["status"] = "failed"
-            job["error"] = "O destino passou a existir depois que o item entrou na fila."
+            job["error"] = "The output path was created after this job was queued."
             self.exportQueueChanged.emit()
-            self.exportDone.emit(False, f"{job['name']}: destino já existe; item ignorado.")
+            self.exportDone.emit(False, f"{job['name']}: output already exists; job skipped.")
             QTimer.singleShot(0, self._start_next_queued_export)
             return
         job["status"] = "exporting"
@@ -1410,7 +1410,7 @@ class ClipBackend(QObject):
                 self._queue_running = False
                 self.exportQueueChanged.emit()
             self._export_task.cancel()
-            self._set_status("Cancelando exportação…")
+            self._set_status("Canceling export…")
 
     def __del__(self):
         # A backend dropped while background work is running must not take the
