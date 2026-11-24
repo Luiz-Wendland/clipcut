@@ -13,7 +13,7 @@ const Backdrop: React.FC<React.PropsWithChildren> = ({children}) => <AbsoluteFil
   <svg width="1920" height="1080" style={{position: 'absolute', inset: 0, opacity: .12}}><defs><pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M80 0H0V80" fill="none" stroke={C.muted} strokeWidth=".5" /></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
   {children}
   <div style={{position: 'absolute', left: 76, bottom: 37, right: 76, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, letterSpacing: 1.5, color: C.muted}}>
-    <span>CLIPCUT <span style={{opacity: .35, padding: '0 16px'}}> / </span> UM PROJETO PESSOAL</span>
+    <span>CLIPCUT <span style={{opacity: .35, padding: '0 16px'}}> / </span> A PERSONAL PROJECT</span>
     <span style={{fontSize: 10, letterSpacing: .6}}>SIMULATED INTERFACE · VISUAL DEMO</span>
   </div>
 </AbsoluteFill>;
@@ -40,9 +40,9 @@ export const Intro: React.FC = () => {
     <div style={{position: 'absolute', left: 100, top: 84, display: 'flex', alignItems: 'center', gap: 15}}><Img src={staticFile('clipcut-brand.svg')} style={{width: 46, height: 46}} /><span style={{fontSize: 22, fontWeight: 600}}>ClipCut</span></div>
     <div style={{position: 'absolute', left: 130, top: 232, opacity: exit}}>
       <Reveal><Eyebrow>LESS EDITING. MORE OF THE MOMENT.</Eyebrow></Reveal>
-      <Reveal delay={8}><div style={{fontSize: 116, lineHeight: 1.06, letterSpacing: -7, fontWeight: 600}}>Find the moment</div></Reveal>
-      <Reveal delay={20}><div style={{fontSize: 116, lineHeight: 1.12, letterSpacing: -7, fontWeight: 600}}>uma <span style={{color: C.accent}}>parte boa.</span></div></Reveal>
-      <Reveal delay={75}><div style={{fontSize: 28, color: C.muted, marginTop: 30}}>Fique com ela.</div></Reveal>
+      <Reveal delay={8}><div style={{fontSize: 116, lineHeight: 1.06, letterSpacing: -7, fontWeight: 600}}>Every video has</div></Reveal>
+      <Reveal delay={20}><div style={{fontSize: 116, lineHeight: 1.12, letterSpacing: -7, fontWeight: 600}}>a <span style={{color: C.accent}}>good part.</span></div></Reveal>
+      <Reveal delay={75}><div style={{fontSize: 28, color: C.muted, marginTop: 30}}>Keep it.</div></Reveal>
     </div>
     <div style={{position: 'absolute', left: 130, right: 130, top: 735, height: 132, display: 'flex', gap: 10, opacity: exit, transform: `translateY(${interpolate(f, [35, 75], [65, 0], ease)}px)`}}>
       {Array.from({length: 9}, (_, i) => <div key={i} style={{flex: 1, borderRadius: 14, overflow: 'hidden', position: 'relative', opacity: i < 2 || i > 6 ? 1-cut*.8 : 1, transform: `translateX(${i < 2 ? -cut*65 : i > 6 ? cut*65 : 0}px)`, border: `1px solid ${C.outline}`}}><PreviewArtwork /></div>)}
