@@ -364,43 +364,6 @@ class BackendTests(unittest.TestCase):
             finally:
                 backend.shutdown()
 
-    def test_kde_palette_reads_distinct_surface_and_button_roles(self):
-        with tempfile.TemporaryDirectory() as directory:
-            with open(os.path.join(directory, "kdeglobals"), "w", encoding="utf-8") as config:
-                config.write("""[Colors:Window]
-BackgroundNormal=#141725
-BackgroundAlternate=#202235
-DecorationFocus=#b5c0ff
-[Colors:View]
-BackgroundNormal=#0b0e16
-ForegroundNormal=#e2e4fc
-ForegroundInactive=#717589
-ForegroundPositive=#31c193
-ForegroundNegative=#ff6a9d
-ForegroundNeutral=#ff734a
-[Colors:Button]
-BackgroundNormal=#1a1d2b
-BackgroundAlternate=#202235
-DecorationHover=#b5c0ff
-[Colors:Selection]
-BackgroundNormal=#b5c0ff
-BackgroundAlternate=#b5c0ff
-DecorationHover=#bdc4f4
-ForegroundNormal=#2a3986
-[Colors:Tooltip]
-BackgroundNormal=#141725
-ForegroundNormal=#e2e4fc
-""")
-            with patch.dict(os.environ, {"XDG_CONFIG_HOME": directory}):
-                palette = ClipBackend._read_palette()
-
-        self.assertEqual(palette["bg"], "#141725")
-        self.assertEqual(palette["viewbg"], "#0b0e16")
-        self.assertEqual(palette["buttonbg"], "#1a1d2b")
-        self.assertEqual(palette["buttonalt"], "#202235")
-        self.assertEqual(palette["accentHover"], "#bdc4f4")
-        self.assertEqual(palette["positive"], "#31c193")
-
     def test_output_overwrite_is_rejected_without_confirmation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "existing.mp4")

@@ -12,9 +12,7 @@ Rectangle {
     signal editingFinished
     implicitHeight: 38
     radius: tokens.radiusSmall
-    color: input.activeFocus
-           ? (tokens.mode === "KDE" ? tokens.controlHover : tokens.surfaceHigh)
-           : (tokens.mode === "KDE" ? tokens.control : tokens.surfaceLow)
+    color: input.activeFocus ? tokens.surfaceHigh : tokens.surfaceLow
     border.width: input.activeFocus ? 1 : 0
     border.color: invalid ? tokens.danger : tokens.accent
     Behavior on color { ColorAnimation { duration: root.tokens.effectFast } }

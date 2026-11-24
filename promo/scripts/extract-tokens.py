@@ -12,23 +12,15 @@ SOURCE = ROOT / "DesignTokens.qml"
 OUTPUT = Path(__file__).resolve().parents[1] / "src" / "design" / "tokens.json"
 
 text = SOURCE.read_text(encoding="utf-8")
+color_properties = {"onAccent": "accentForeground"}
 patterns = {
     "colors": {
-        "canvas": r'property color canvas:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "surface": r'property color surface:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "surfaceLow": r'property color surfaceLow:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "surfaceHigh": r'property color surfaceHigh:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "surfaceHighest": r'property color surfaceHighest:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "foreground": r'property color foreground:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "muted": r'property color muted:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "accent": r'property color accent:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "onAccent": r'property color onAccent:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "accentSoft": r'property color accentSoft:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "outline": r'property color outline:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "danger": r'property color danger:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "success": r'property color success:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "warning": r'property color warning:.*?:\s*"(#[0-9a-fA-F]{6})"',
-        "preview": r'property color preview:\s*"(#[0-9a-fA-F]{6})"',
+        key: rf'property color {color_properties.get(key, key)}:[ \t]*"(#[0-9a-fA-F]{{6}})"'
+        for key in (
+            "canvas", "surface", "surfaceLow", "surfaceHigh", "surfaceHighest",
+            "foreground", "muted", "accent", "onAccent", "accentSoft", "outline",
+            "danger", "success", "warning", "preview",
+        )
     },
     "radii": {
         "small": r'property int radiusSmall:\s*(\d+)',

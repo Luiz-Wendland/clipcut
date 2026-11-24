@@ -18,7 +18,6 @@ Window {
     title: "ClipCut"
     color: theme.canvas
 
-    property string themeMode: "ClipCut"
     property bool reducedMotion: false
     property string activeTool: "Trim"
     property string selectedCodec: "h264"
@@ -74,9 +73,7 @@ Window {
 
     DesignTokens {
         id: theme
-        mode: root.themeMode
         reducedMotion: root.reducedMotion
-        systemColors: backend.themePalette
     }
 
     function formatTime(seconds) {
@@ -843,7 +840,7 @@ Window {
         visible: root.showSettings || opacity > 0.01
         enabled: root.showSettings
         width: Math.min(340, root.width - 32)
-        height: Math.min(420, root.height - 36)
+        height: settingsContent.implicitHeight + 36
         x: root.showSettings ? root.width - width - 18 : root.width + 8
         y: 18
         radius: theme.radiusExtraLarge
@@ -856,6 +853,7 @@ Window {
         Behavior on opacity { NumberAnimation { duration: theme.effectDefault } }
         Behavior on scale { NumberAnimation { duration: theme.spatialFast; easing.type: Easing.OutCubic } }
         Column {
+            id: settingsContent
             anchors.fill: parent; anchors.margins: 18; spacing: 10
             RowLayout {
                 width: parent.width; height: 38
@@ -864,11 +862,21 @@ Window {
                 ActionButton { tokens: root.tokens; text: "×"; kind: "quiet"; compact: true; onClicked: root.showSettings = false }
             }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
-            Text { text: qsTr("Language"); color: theme.muted; font.pixelSize: theme.textSm }
+            Text {
+                text: qsTr("Language").toUpperCase()
+                color: theme.muted
+                font.pixelSize: theme.textXs
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1
+            }
             Controls.ComboBox {
+                id: languageSelector
                 objectName: "languageSelector"
                 width: parent.width
-                height: 34
+                height: 38
+                leftPadding: 12
+                rightPadding: 36
+                hoverEnabled: true
                 textRole: "label"
                 valueRole: "mode"
                 model: [
@@ -879,23 +887,86 @@ Window {
                 currentIndex: backend.languageMode === "pt-BR" ? 2 : backend.languageMode === "en" ? 1 : 0
                 onActivated: backend.setLanguageMode(currentValue)
                 Accessible.name: qsTr("Language")
-                palette.base: theme.surfaceHigh
-                palette.button: theme.surfaceHigh
-                palette.buttonText: theme.foreground
-                palette.text: theme.foreground
-                palette.window: theme.panel
-                palette.highlight: theme.accentSoft
-                palette.highlightedText: theme.foreground
+
+                background: Rectangle {
+                    radius: theme.radiusMedium
+                    color: languageSelector.down ? theme.accentSoft
+                         : languageSelector.hovered ? theme.controlHover : theme.control
+                    border.color: languageSelector.activeFocus ? theme.accent : theme.outline
+                    Behavior on color { ColorAnimation { duration: theme.effectFast } }
+                }
+                contentItem: Text {
+                    text: languageSelector.displayText
+                    color: theme.foreground
+                    font.pixelSize: theme.textSm
+                    font.weight: Font.Medium
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                indicator: Text {
+                    x: languageSelector.width - width - 13
+                    y: (languageSelector.height - height) / 2
+                    text: "⌄"
+                    color: languageSelector.popup.visible ? theme.accent : theme.muted
+                    font.pixelSize: 16
+                    rotation: languageSelector.popup.visible ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: theme.effectFast } }
+                }
+                delegate: Controls.ItemDelegate {
+                    id: languageOption
+                    required property int index
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : 0
+                    height: 34
+                    horizontalPadding: 10
+                    text: modelData.label
+                    highlighted: languageSelector.highlightedIndex === index
+                    readonly property bool selected: languageSelector.currentIndex === index
+                    contentItem: RowLayout {
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            text: languageOption.text
+                            color: theme.foreground
+                            font.pixelSize: theme.textSm
+                            font.weight: languageOption.selected ? Font.DemiBold : Font.Normal
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            visible: languageOption.selected
+                            text: "✓"
+                            color: theme.accent
+                            font.pixelSize: theme.textSm
+                        }
+                    }
+                    background: Rectangle {
+                        radius: theme.radiusSmall
+                        color: languageOption.highlighted || languageOption.hovered ? theme.controlHover
+                             : languageOption.selected ? theme.accentSoft : "transparent"
+                    }
+                }
+                popup: Controls.Popup {
+                    objectName: "languageOptionsPopup"
+                    y: languageSelector.height + 6
+                    width: languageSelector.width
+                    padding: 5
+                    contentItem: ListView {
+                        implicitHeight: languageSelector.count * 34 + (languageSelector.count - 1) * spacing
+                        spacing: 2
+                        clip: true
+                        interactive: false
+                        model: languageSelector.popup.visible ? languageSelector.delegateModel : null
+                        currentIndex: languageSelector.highlightedIndex
+                    }
+                    background: Rectangle {
+                        color: theme.panel
+                        radius: theme.radiusMedium
+                        border.color: theme.outline
+                    }
+                }
             }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
             Text { text: qsTr("APPEARANCE"); color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-            Row {
-                spacing: 7
-                ActionButton { tokens: root.tokens; text: "ClipCut"; checked: root.themeMode === "ClipCut"; onClicked: root.themeMode = "ClipCut" }
-                ActionButton { tokens: root.tokens; text: qsTr("Follow KDE"); checked: root.themeMode === "KDE"; onClicked: root.themeMode = "KDE" }
-            }
-            Text { width: parent.width; text: root.themeMode === "KDE" ? qsTr("Uses the active KDE color scheme.") : qsTr("Dark graphite and soft lavender."); color: theme.muted; font.pixelSize: theme.textXs; wrapMode: Text.WordWrap }
-            Rectangle { width: parent.width; height: 1; color: theme.outline }
             Row {
                 width: parent.width; height: 42; spacing: 10
                 Rectangle { width: 38; height: 24; radius: theme.radiusFull; color: root.reducedMotion ? theme.accentSoft : theme.surfaceHigh; anchors.verticalCenter: parent.verticalCenter
@@ -907,6 +978,7 @@ Window {
                     Text { text: qsTr("Subtler animations"); color: theme.muted; font.pixelSize: theme.textXs }
                 }
             }
+            Rectangle { width: parent.width; height: 1; color: theme.outline }
             Row {
                 width: parent.width; height: 42; spacing: 10
                 Rectangle {

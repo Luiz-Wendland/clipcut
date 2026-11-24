@@ -15,12 +15,11 @@ import tempfile
 import threading
 import time
 import uuid
-import configparser
 import atexit
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QObject, Property, QSettings, QThread, QTimer, QUrl, Signal, Slot
-from PySide6.QtGui import QColor, QGuiApplication, QIcon
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
 from localization import LanguagePreference, tr
@@ -260,7 +259,6 @@ class ClipBackend(QObject):
     progressChanged = Signal()
     gpuChanged = Signal()
     gpuPreferenceChanged = Signal()
-    paletteChanged = Signal()
     exportDirectoryChanged = Signal()
     waveformChanged = Signal()
     exportQueueChanged = Signal()
@@ -290,7 +288,6 @@ class ClipBackend(QObject):
         self._status_values = {}
         self._progress = 0
         self._gpu_devices = self._detect_gpu_devices()
-        self._palette = self._read_palette()
         self._settings = QSettings(QSettings.IniFormat, QSettings.UserScope, "ClipCut", "ClipCut")
         self._language = LanguagePreference(self._settings, self)
         self._language.changed.connect(self._language_changed)
@@ -452,49 +449,6 @@ class ClipBackend(QObject):
                     if len(fields := line.split()) >= 3 and fields[0].startswith("V") and fields[1] != "="}
         except (OSError, subprocess.SubprocessError):
             return set()
-
-    @staticmethod
-    def _read_palette():
-        fallback = {"bg": "#141212", "fg": "#f4f1ee", "fgdim": "#a8a4a0",
-                    "accent": "#e9e5e1", "onaccent": "#141212",
-                    "viewbg": "#101116", "windowalt": "#1d1e25",
-                    "buttonbg": "#24262e", "buttonalt": "#2d3039",
-                    "accentHover": "#d8d2e6", "decoration": "#d8d2e6",
-                    "focus": "#d8d2e6", "positive": "#b9d6c3",
-                    "negative": "#ffb4ab", "neutral": "#e4c48e",
-                    "tooltipbg": "#24262e", "tooltipfg": "#f4f1ee"}
-        config = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kdeglobals"
-        parser = configparser.ConfigParser(interpolation=None, strict=False)
-        parser.optionxform = str
-        try:
-            parser.read(config, encoding="utf-8")
-            sections = {
-                "bg": ("Colors:Window", "BackgroundNormal"),
-                "fg": ("Colors:View", "ForegroundNormal"),
-                "fgdim": ("Colors:View", "ForegroundInactive"),
-                "accent": ("Colors:Selection", "BackgroundNormal"),
-                "onaccent": ("Colors:Selection", "ForegroundNormal"),
-                "viewbg": ("Colors:View", "BackgroundNormal"),
-                "windowalt": ("Colors:Window", "BackgroundAlternate"),
-                "buttonbg": ("Colors:Button", "BackgroundNormal"),
-                "buttonalt": ("Colors:Button", "BackgroundAlternate"),
-                "accentHover": ("Colors:Selection", "DecorationHover"),
-                "decoration": ("Colors:Button", "DecorationHover"),
-                "focus": ("Colors:Window", "DecorationFocus"),
-                "positive": ("Colors:View", "ForegroundPositive"),
-                "negative": ("Colors:View", "ForegroundNegative"),
-                "neutral": ("Colors:View", "ForegroundNeutral"),
-                "tooltipbg": ("Colors:Tooltip", "BackgroundNormal"),
-                "tooltipfg": ("Colors:Tooltip", "ForegroundNormal"),
-            }
-            for key, (section, name) in sections.items():
-                value = parser.get(section, name, fallback="").strip()
-                color = QColor(value)
-                if color.isValid():
-                    fallback[key] = color.name()
-            return fallback
-        except (OSError, configparser.Error):
-            return fallback
 
     def _property(name, signal):
         return Property(str, lambda self: getattr(self, name), notify=signal)
@@ -758,10 +712,6 @@ class ClipBackend(QObject):
     def copyDiagnosticReport(self):
         QGuiApplication.clipboard().setText(self.diagnosticReport())
         self._set_status("Diagnostics copied to the clipboard.")
-
-    @Property("QVariantMap", notify=paletteChanged)
-    def themePalette(self):
-        return self._palette
 
     @Slot(QUrl)
     def openUrl(self, url: QUrl):

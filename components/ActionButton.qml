@@ -49,7 +49,7 @@ Rectangle {
         Text {
             visible: root.symbol.length > 0
             text: root.symbol
-            color: root.kind === "primary" && root.enabled ? root.tokens.onAccent :
+            color: root.kind === "primary" && root.enabled ? root.tokens.accentForeground :
                    root.kind === "danger" ? root.tokens.foreground : root.tokens.foreground
             font.pixelSize: 15
             font.weight: Font.Medium
@@ -59,7 +59,7 @@ Rectangle {
             id: label
             text: root.text
             visible: root.text.length > 0
-            color: root.kind === "primary" && root.enabled ? root.tokens.onAccent : root.tokens.foreground
+            color: root.kind === "primary" && root.enabled ? root.tokens.accentForeground : root.tokens.foreground
             font.pixelSize: root.compact ? root.tokens.textXs : root.tokens.textSm
             font.weight: root.kind === "primary" ? Font.DemiBold : Font.Medium
             anchors.verticalCenter: parent.verticalCenter

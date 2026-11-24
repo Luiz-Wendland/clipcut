@@ -66,9 +66,11 @@ engine, backend = load()
 root = engine.rootObjects()[0]
 root.setProperty("showSettings", True)
 selector = root.findChild(QObject, "languageSelector")
+assert root.property("color").name() == "#111216"
 assert backend.languageMode == "system"
 assert selector.property("currentText") == "System default"
-assert "Open video" in strings(root)
+assert {"Open video", "Reduce motion"} <= strings(root)
+assert "Follow KDE" not in strings(root)
 root.setProperty("activeTool", "Crop")
 root.setProperty("selectedRatio", "Custom")
 
@@ -77,7 +79,8 @@ selector.activated.emit(2)
 app.processEvents()
 assert backend.languageMode == "pt-BR"
 assert selector.property("currentText") == "Português (Brasil)"
-assert {"Abrir vídeo", "Preferências", "Exportar clipe"} <= strings(root)
+assert {"Abrir vídeo", "Preferências", "Exportar clipe", "Reduzir movimento"} <= strings(root)
+assert "Seguir o KDE" not in strings(root)
 assert root.property("activeTool") == "Crop"
 assert root.property("selectedRatio") == "Custom"
 assert backend.status == "Abra um vídeo ou solte-o aqui"

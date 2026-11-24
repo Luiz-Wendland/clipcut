@@ -29,7 +29,7 @@ Controls.Slider {
         height: width
         radius: width / 2
         color: root.tokens.accent
-        border.color: root.tokens.onAccent
+        border.color: root.tokens.accentForeground
         border.width: 2
         Behavior on width { NumberAnimation { duration: root.tokens.effectFast; easing.type: Easing.OutCubic } }
     }

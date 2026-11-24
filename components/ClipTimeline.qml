@@ -279,7 +279,7 @@ Rectangle {
                     asynchronous: true
                     cache: false
                     visible: status === Image.Ready && x + width > 0 && x < track.width
-                    opacity: root.tokens.mode === "ClipCut" ? 0.86 : 0.78
+                    opacity: 0.86
                 }
             }
             Text {
