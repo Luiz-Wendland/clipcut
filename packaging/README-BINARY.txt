@@ -10,6 +10,9 @@ Windows MSI: install ClipCut, then launch main.exe from the install folder.
 AppImage: make the file executable and open it. FFmpeg and ffprobe must still
           be on your PATH.
 
+To switch between English and Brazilian Portuguese, open Preferences > Language.
+The choice is saved and takes effect without restarting.
+
 See README.md for controls, codecs, limitations, and troubleshooting.
 ClipCut is licensed under MIT (LICENSE). Qt/PySide6 and other bundled
 components retain their own licenses. See README.md and their notices before

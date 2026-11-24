@@ -20,12 +20,14 @@
 
 https://github.com/user-attachments/assets/d6869850-90fa-4b82-ad44-f9b1bd8cca2f
 
+ClipCut started as a personal project for making quick cuts without opening a full video editor. It turned out to be useful enough to share, so I published it.
+
 ## Download
 
 | Windows | Linux |
 |---|---|
-| [MSI installer](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-x86_64.AppImage) |
-| [Portable ZIP](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/download/v0.2.0/ClipCut-linux-x86_64.tar.gz) |
+| [MSI installer](https://github.com/Luiz-Wendland/clipcut/releases/latest/download/ClipCut-windows-x86_64.msi) | [AppImage](https://github.com/Luiz-Wendland/clipcut/releases/latest/download/ClipCut-x86_64.AppImage) |
+| [Portable ZIP](https://github.com/Luiz-Wendland/clipcut/releases/latest/download/ClipCut-windows-x86_64.zip) | [tar.gz](https://github.com/Luiz-Wendland/clipcut/releases/latest/download/ClipCut-linux-x86_64.tar.gz) |
 
 These **x86_64** packages include Python and Qt. **Install FFmpeg and ffprobe separately and make sure both are on your `PATH`.**
 
@@ -33,7 +35,7 @@ Extract the ZIP and open `main.exe`, or extract the tar.gz and run `./ClipCut`. 
 
 [All releases](https://github.com/Luiz-Wendland/clipcut/releases).
 
-The v0.2.0 downloads use the original Portuguese interface. To use the English interface, [run from source](#run-from-source).
+English and Brazilian Portuguese are available starting with v0.3.0. Open **Preferences → Language** to switch immediately. ClipCut remembers your choice. **System default** follows the system's preferred supported language and falls back to English.
 
 ## How to use
 
