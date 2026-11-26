@@ -30,6 +30,7 @@ Rectangle {
         return checked ? tokens.accentSoft : hovered ? tokens.controlHover : tokens.control
     }
     opacity: enabled ? 1 : 0.52
+    clip: true
     border.width: activeFocus ? 2 : 0
     border.color: tokens.accent
 
@@ -47,6 +48,7 @@ Rectangle {
         anchors.centerIn: parent
         spacing: root.symbol && root.text ? 7 : 0
         Text {
+            id: symbolText
             visible: root.symbol.length > 0
             text: root.symbol
             color: root.kind === "primary" && root.enabled ? root.tokens.accentForeground :
@@ -59,6 +61,10 @@ Rectangle {
             id: label
             text: root.text
             visible: root.text.length > 0
+            width: root.width > 0
+                   ? Math.min(implicitWidth, Math.max(0, root.width - 16 - (root.symbol.length > 0 ? symbolText.implicitWidth + parent.spacing : 0)))
+                   : implicitWidth
+            elide: Text.ElideRight
             color: root.kind === "primary" && root.enabled ? root.tokens.accentForeground : root.tokens.foreground
             font.pixelSize: root.compact ? root.tokens.textXs : root.tokens.textSm
             font.weight: root.kind === "primary" ? Font.DemiBold : Font.Medium

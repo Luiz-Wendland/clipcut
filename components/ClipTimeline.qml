@@ -21,6 +21,7 @@ Rectangle {
     readonly property string firstThumbnailState: thumbnailRepeater.count > 0 && thumbnailRepeater.itemAt(0)
                                                   ? thumbnailRepeater.itemAt(0).loadState : "empty"
     signal playSelectionToggled(bool value)
+    signal returnFocusRequested
 
     color: root.tokens.surfaceLow
     radius: root.tokens.radiusLarge
@@ -29,8 +30,10 @@ Rectangle {
 
     function timecode(seconds) {
         seconds = Math.max(0, Number(seconds) || 0)
-        const m = Math.floor(seconds / 60)
-        return String(m).padStart(2, "0") + ":" + (seconds % 60).toFixed(2).padStart(5, "0")
+        const rounded = Math.round(seconds * 100) / 100
+        const m = Math.floor(rounded / 60)
+        const rest = Math.round((rounded - m * 60) * 100) / 100
+        return String(m).padStart(2, "0") + ":" + rest.toFixed(2).padStart(5, "0")
     }
     function parseTime(value) {
         const text = String(value).trim()
@@ -147,13 +150,23 @@ Rectangle {
                     id: inTimeField
                     objectName: "timelineInField"
                     width: 92; height: 28; tokens: root.tokens
-                     fontFamily: "monospace"
+                    fontFamily: "monospace"
+                    property bool invalidFlash: false
+                    invalid: invalidFlash
                     text: root.timecode(root.clipBackend.clipStart)
+                    Timer { id: inTimeInvalidTimer; interval: 900; onTriggered: inTimeField.invalidFlash = false }
                     onEditingFinished: {
                         const seconds = root.parseTime(text)
-                        if (Number.isFinite(seconds)) root.clipBackend.setRange(seconds, root.clipBackend.clipEnd)
+                        if (Number.isFinite(seconds)) {
+                            invalidFlash = false
+                            root.clipBackend.setRange(seconds, root.clipBackend.clipEnd)
+                        } else {
+                            invalidFlash = true
+                            inTimeInvalidTimer.restart()
+                        }
                         text = root.timecode(root.clipBackend.clipStart)
                     }
+                    onAccepted: root.returnFocusRequested()
                 }
             }
             Row {
@@ -173,13 +186,23 @@ Rectangle {
                     id: outTimeField
                     objectName: "timelineOutField"
                     width: 92; height: 28; tokens: root.tokens
-                     fontFamily: "monospace"
+                    fontFamily: "monospace"
+                    property bool invalidFlash: false
+                    invalid: invalidFlash
                     text: root.timecode(root.clipBackend.clipEnd)
+                    Timer { id: outTimeInvalidTimer; interval: 900; onTriggered: outTimeField.invalidFlash = false }
                     onEditingFinished: {
                         const seconds = root.parseTime(text)
-                        if (Number.isFinite(seconds)) root.clipBackend.setRange(root.clipBackend.clipStart, seconds)
+                        if (Number.isFinite(seconds)) {
+                            invalidFlash = false
+                            root.clipBackend.setRange(root.clipBackend.clipStart, seconds)
+                        } else {
+                            invalidFlash = true
+                            outTimeInvalidTimer.restart()
+                        }
                         text = root.timecode(root.clipBackend.clipEnd)
                     }
+                    onAccepted: root.returnFocusRequested()
                 }
             }
             Item { Layout.fillWidth: true; height: 1 }
@@ -200,17 +223,23 @@ Rectangle {
                 ActionButton {
                     tokens: root.tokens; text: "−"; compact: true; enabled: root.viewZoom > 1
                     Controls.ToolTip.text: qsTr("Zoom out")
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.delay: 600
                     onClicked: root.zoomAt(track.width / 2, 0.8)
                 }
                 ActionButton {
                     tokens: root.tokens; text: root.viewZoom.toFixed(1) + "×"; compact: true
                     Controls.ToolTip.text: qsTr("Fit full duration")
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.delay: 600
                     onClicked: { root.viewZoom = 1; root.viewStart = 0 }
                 }
                 ActionButton {
                     objectName: "timelineZoomIn"
                     tokens: root.tokens; text: "+"; compact: true; enabled: root.viewZoom < root.maxZoom
                     Controls.ToolTip.text: qsTr("Zoom in (up to 4×)")
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.delay: 600
                     onClicked: root.zoomAt(track.width / 2, 1.25)
                 }
             }
@@ -221,6 +250,15 @@ Rectangle {
                     width: 34; height: 20; radius: 10
                     color: root.playSelection ? root.tokens.accentSoft : root.tokens.surfaceHigh
                     opacity: root.clipBackend.hasVideo ? 1 : 0.5
+                    enabled: root.clipBackend.hasVideo
+                    activeFocusOnTab: enabled
+                    border.width: activeFocus ? 2 : 0
+                    border.color: root.tokens.accent
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: qsTr("Play selection only")
+                    Accessible.checked: root.playSelection
+                    Keys.onSpacePressed: function(event) { root.playSelectionToggled(!root.playSelection); event.accepted = true }
+                    Keys.onReturnPressed: function(event) { root.playSelectionToggled(!root.playSelection); event.accepted = true }
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
                         x: root.playSelection ? 16 : 2; y: 2; width: 16; height: 16; radius: 8
@@ -487,6 +525,7 @@ Rectangle {
                 Controls.ToolTip.visible: containsMouse && root.clipBackend.hasVideo
                 Controls.ToolTip.delay: 700
                 onPressed: function(mouse) {
+                    root.returnFocusRequested()
                     root.beginDrag()
                     root.seek(mouse.x)
                 }
@@ -522,6 +561,7 @@ Rectangle {
                     anchors.margins: -6
                     cursorShape: Qt.SizeHorCursor
                     onPressed: function(mouse) {
+                        root.returnFocusRequested()
                         root.beginDrag()
                         root.clipStartOnPress = root.clipBackend.clipStart
                         root.clipEndOnPress = root.clipBackend.clipEnd
@@ -549,6 +589,7 @@ Rectangle {
                     anchors.margins: -6
                     cursorShape: Qt.SizeHorCursor
                     onPressed: function(mouse) {
+                        root.returnFocusRequested()
                         root.beginDrag()
                         root.clipStartOnPress = root.clipBackend.clipStart
                         root.clipEndOnPress = root.clipBackend.clipEnd

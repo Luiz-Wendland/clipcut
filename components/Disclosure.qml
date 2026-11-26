@@ -15,6 +15,13 @@ Column {
         height: 38
         radius: tokens.radiusMedium
         color: headerMouse.containsMouse ? tokens.controlHover : "transparent"
+        border.width: activeFocus ? 2 : 0
+        border.color: root.tokens.accent
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: root.title
+        Keys.onSpacePressed: function(event) { root.expanded = !root.expanded; event.accepted = true }
+        Keys.onReturnPressed: function(event) { root.expanded = !root.expanded; event.accepted = true }
         Behavior on color { ColorAnimation { duration: root.tokens.effectFast } }
         RowLayout {
             anchors.fill: parent
@@ -66,7 +73,6 @@ Column {
             width: parent.width
             spacing: 9
             padding: 4
-            onImplicitHeightChanged: body.height = root.expanded ? implicitHeight : 0
         }
     }
 }

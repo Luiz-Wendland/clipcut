@@ -10,11 +10,12 @@ Rectangle {
     property bool readOnly: false
     property bool invalid: false
     signal editingFinished
+    signal accepted
     signal textEdited(string text)
     implicitHeight: 38
     radius: tokens.radiusSmall
     color: input.activeFocus ? tokens.surfaceHigh : tokens.surfaceLow
-    border.width: input.activeFocus ? 1 : 0
+    border.width: (input.activeFocus || invalid) ? 1 : 0
     border.color: invalid ? tokens.danger : tokens.accent
     Behavior on color { ColorAnimation { duration: root.tokens.effectFast } }
 
@@ -34,6 +35,7 @@ Rectangle {
         font.pixelSize: root.tokens.textSm
         background: Item {}
         onEditingFinished: root.editingFinished()
+        onAccepted: root.accepted()
         onTextEdited: root.textEdited(text)
     }
 }

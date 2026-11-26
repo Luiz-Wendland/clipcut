@@ -13,6 +13,7 @@ PT_BR = {
     "Audio": "Áudio",
     "Audio waveform unavailable": "Forma de onda indisponível",
     "Browse…": "Escolher…",
+    "CODEC": "CODEC",
     "CPU (GPU unavailable)": "CPU (GPU indisponível)",
     "Cancel": "Cancelar",
     "Canceled": "Cancelado",

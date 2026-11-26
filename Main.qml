@@ -120,7 +120,12 @@ Window {
         }
     }
     function seekTo(seconds) {
-        if (backend.hasVideo) player.position = Math.max(0, Math.min(player.duration, seconds * 1000))
+        if (!backend.hasVideo) return
+        if (player.error !== MediaPlayer.NoError || player.mediaStatus === MediaPlayer.NoMedia) {
+            backend.requestPreview(Math.max(0, Math.min(backend.duration, seconds)))
+            return
+        }
+        player.position = Math.max(0, Math.min(player.duration, seconds * 1000))
     }
     function generatedOutputPath(directory) {
         const folder = directory === "/" ? "" : directory.replace(/\/+$/, "")
@@ -226,7 +231,7 @@ Window {
         objectName: "clipcutMediaPlayer"
         audioOutput: audioOutput
         videoOutput: videoOutput
-        onPositionChanged: backend.setPlaybackPosition(position / 1000)
+        onPositionChanged: (position) => backend.setPlaybackPosition(position / 1000)
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.LoadedMedia && root.pendingAutoplay) {
                 root.pendingAutoplay = false
@@ -258,6 +263,9 @@ Window {
             root.pendingAutoplay = !!backend.mediaUrl.toString()
             player.stop()
             player.source = backend.mediaUrl
+            root.selectedRatio = "Original"
+            root.customRatioValue = ""
+            root.lastValidCustomRatio = "3:2"
             root.outputName = root.defaultOutputName()
             if (root.outputDirectory) {
                 root.pendingOutput = root.generatedOutputPath(root.outputDirectory)
@@ -307,7 +315,20 @@ Window {
             else if (root.showExport) root.showExport = false
             else if (root.showDiagnostics) root.showDiagnostics = false
             else if (root.showSettings) root.showSettings = false
+            else if (root.textEntryHasFocus()) appSurface.forceActiveFocus()
         }
+    }
+    Shortcut {
+        sequence: "Ctrl+O"
+        context: Qt.WindowShortcut
+        enabled: !backend.busy && !root.showOverwrite && !openDialog.visible && !folderDialog.visible
+        onActivated: openDialog.open()
+    }
+    Shortcut {
+        sequence: "Ctrl+E"
+        context: Qt.WindowShortcut
+        enabled: backend.hasVideo && !backend.busy && !root.showOverwrite && !openDialog.visible && !folderDialog.visible
+        onActivated: { root.showExport = true; root.showSettings = false; root.showDiagnostics = false }
     }
     Shortcut {
         sequence: "I"
@@ -463,7 +484,7 @@ Window {
                 id: workspace
                 objectName: "editorWorkspace"
                 width: parent.width
-        height: Math.max(230, parent.height - toolbar.height - timelineDock.height - footer.height - 9)
+        height: Math.max(230, parent.height - toolbar.height - timelineDock.height - 9)
                 spacing: theme.space4
 
                 // Navigation and inspector belong to the same editor surface.
@@ -525,6 +546,13 @@ Window {
                         cache: false
                         visible: status === Image.Ready &&
                                  (player.error !== MediaPlayer.NoError || player.mediaStatus === MediaPlayer.NoMedia)
+                    }
+                    MouseArea {
+                        anchors.fill: videoOutput
+                        onPressed: function(mouse) {
+                            appSurface.forceActiveFocus()
+                            mouse.accepted = false
+                        }
                     }
 
                         Column {
@@ -600,6 +628,7 @@ Window {
                             anchors.fill: parent
                             cursorShape: Qt.SizeAllCursor
                             onPressed: function(mouse) {
+                                appSurface.forceActiveFocus()
                                 const point = mapToItem(videoOutput, mouse.x, mouse.y)
                                 root.cropPressX = point.x; root.cropPressY = point.y
                                 root.cropCenterX = backend.cropRect.x + backend.cropRect.width / 2
@@ -684,14 +713,10 @@ Window {
                                 symbol: root.isPlaying ? "Ⅱ" : "▶"
                                 kind: "tonal"
                                 Layout.alignment: Qt.AlignVCenter
-                                enabled: backend.hasVideo
+                                enabled: backend.hasVideo && !backend.busy
                                 onClicked: {
-                                    if (root.isPlaying) player.pause()
-                                    else {
-                                        if (root.playSelection && (player.position < backend.clipStart * 1000 || player.position >= backend.clipEnd * 1000))
-                                            player.position = backend.clipStart * 1000
-                                        player.play()
-                                    }
+                                    appSurface.forceActiveFocus()
+                                    root.togglePlayback()
                                 }
                             }
                             ActionButton {
@@ -733,6 +758,7 @@ Window {
                     function onCenterCropRequested() { backend.centerCrop() }
                     function onIncludeAudioToggled(value) { root.includeAudio = value }
                     function onAudioMuteToggled(value) { root.audioMuted = value }
+                    function onReturnFocusRequested() { appSurface.forceActiveFocus() }
                 }
             }
 
@@ -748,30 +774,7 @@ Window {
                 mediaPlayer: root.mediaPlayer
                 playSelection: root.playSelection
                 onPlaySelectionToggled: value => root.playSelection = value
-            }
-
-            Row {
-                id: footer
-                width: parent.width
-                height: backend.exporting ? 25 : 0
-                spacing: 8
-                Item { width: Math.max(0, parent.width - 140); height: 1 }
-                ProgressRail {
-                    tokens: root.tokens
-                    visible: backend.exporting && backend.progress > 0
-                    value: backend.progress / 100
-                    width: 110
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                ActionButton {
-                    visible: backend.exporting
-                    tokens: root.tokens
-                    text: qsTr("Cancel")
-                    kind: "danger"
-                    compact: true
-                    anchors.verticalCenter: parent.verticalCenter
-                    onClicked: backend.cancelExport()
-                }
+                onReturnFocusRequested: appSurface.forceActiveFocus()
             }
         }
     }
@@ -780,11 +783,25 @@ Window {
     Rectangle {
         anchors.fill: parent
         z: 20
-        visible: root.showExport || root.showSettings || root.showDiagnostics || root.showOverwrite
+        visible: root.showExport || root.showSettings
         opacity: visible ? 1 : 0
-        color: root.showExport || root.showOverwrite ? "#55090a0f" : "transparent"
+        color: root.showExport ? "#55090a0f" : "transparent"
         Behavior on opacity { NumberAnimation { duration: theme.effectDefault; easing.type: Easing.OutCubic } }
-        MouseArea { anchors.fill: parent; onClicked: { root.showExport = false; root.showSettings = false; root.showDiagnostics = false; if (!root.showOverwrite) root.showOverwrite = false } }
+        MouseArea { anchors.fill: parent; onClicked: { root.showExport = false; root.showSettings = false } }
+    }
+    Rectangle {
+        anchors.fill: parent
+        z: 25
+        visible: root.showDiagnostics
+        color: "#55090a0f"
+        MouseArea { anchors.fill: parent; onClicked: root.showDiagnostics = false }
+    }
+    Rectangle {
+        anchors.fill: parent
+        z: 29
+        visible: root.showOverwrite
+        color: "#55090a0f"
+        MouseArea { anchors.fill: parent; onClicked: root.showOverwrite = false }
     }
 
     ExportPopover {
@@ -969,13 +986,30 @@ Window {
             Text { text: qsTr("APPEARANCE"); color: theme.muted; font.pixelSize: theme.textXs; font.weight: Font.DemiBold; font.letterSpacing: 1 }
             Row {
                 width: parent.width; height: 42; spacing: 10
-                Rectangle { width: 38; height: 24; radius: theme.radiusFull; color: root.reducedMotion ? theme.accentSoft : theme.surfaceHigh; anchors.verticalCenter: parent.verticalCenter
+                Rectangle {
+                    width: 38; height: 24; radius: theme.radiusFull; color: root.reducedMotion ? theme.accentSoft : theme.surfaceHigh; anchors.verticalCenter: parent.verticalCenter
+                    border.width: activeFocus ? 2 : 0; border.color: theme.accent
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: qsTr("Reduce motion")
+                    Accessible.checked: root.reducedMotion
+                    Keys.onSpacePressed: function(event) { backend.setReducedMotion(!backend.reducedMotion); event.accepted = true }
+                    Keys.onReturnPressed: function(event) { backend.setReducedMotion(!backend.reducedMotion); event.accepted = true }
                     Rectangle { x: root.reducedMotion ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.reducedMotion ? theme.accent : theme.muted; Behavior on x { NumberAnimation { duration: theme.effectFast } } }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: backend.setReducedMotion(!backend.reducedMotion) }
                 }
-                Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: qsTr("Reduce motion"); color: theme.foreground; font.pixelSize: theme.textSm }
-                    Text { text: qsTr("Subtler animations"); color: theme.muted; font.pixelSize: theme.textXs }
+                Item {
+                    width: Math.max(0, parent.width - 48)
+                    height: reduceMotionLabelCol.implicitHeight
+                    anchors.verticalCenter: parent.verticalCenter
+                    Column {
+                        id: reduceMotionLabelCol
+                        width: parent.width
+                        spacing: 2
+                        Text { width: parent.width; text: qsTr("Reduce motion"); color: theme.foreground; font.pixelSize: theme.textSm; elide: Text.ElideRight }
+                        Text { width: parent.width; text: qsTr("Subtler animations"); color: theme.muted; font.pixelSize: theme.textXs; elide: Text.ElideRight }
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: backend.setReducedMotion(!backend.reducedMotion) }
                 }
             }
             Rectangle { width: parent.width; height: 1; color: theme.outline }
@@ -985,6 +1019,15 @@ Window {
                     width: 38; height: 24; radius: theme.radiusFull
                     color: backend.preferGpu && backend.gpuAvailable ? theme.accentSoft : theme.surfaceHigh
                     opacity: backend.gpuAvailable ? 1 : 0.5
+                    enabled: backend.gpuAvailable
+                    activeFocusOnTab: enabled
+                    border.width: activeFocus ? 2 : 0
+                    border.color: theme.accent
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: qsTr("Use GPU acceleration when supported")
+                    Accessible.checked: backend.preferGpu && backend.gpuAvailable
+                    Keys.onSpacePressed: function(event) { backend.setPreferGpu(!backend.preferGpu); event.accepted = true }
+                    Keys.onReturnPressed: function(event) { backend.setPreferGpu(!backend.preferGpu); event.accepted = true }
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
                         x: backend.preferGpu ? 18 : 3; y: 3; width: 18; height: 18; radius: 9
@@ -997,9 +1040,22 @@ Window {
                         onClicked: backend.setPreferGpu(!backend.preferGpu)
                     }
                 }
-                Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                    Text { text: qsTr("Use GPU acceleration when supported"); color: theme.foreground; font.pixelSize: theme.textSm }
-                    Text { text: backend.gpuName; color: theme.muted; font.pixelSize: theme.textXs; elide: Text.ElideRight; width: 250 }
+                Item {
+                    width: Math.max(0, parent.width - 48)
+                    height: gpuLabelCol.implicitHeight
+                    anchors.verticalCenter: parent.verticalCenter
+                    Column {
+                        id: gpuLabelCol
+                        width: parent.width
+                        spacing: 2
+                        Text { width: parent.width; text: qsTr("Use GPU acceleration when supported"); color: theme.foreground; font.pixelSize: theme.textSm; elide: Text.ElideRight }
+                        Text { width: parent.width; text: backend.gpuName; color: theme.muted; font.pixelSize: theme.textXs; elide: Text.ElideRight }
+                    }
+                    MouseArea {
+                        anchors.fill: parent; enabled: backend.gpuAvailable
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: backend.setPreferGpu(!backend.preferGpu)
+                    }
                 }
             }
             ActionButton {
@@ -1025,26 +1081,26 @@ Window {
         radius: theme.radiusExtraLarge
         color: theme.panel
         border.color: theme.outline
-        Column {
+        ColumnLayout {
             anchors.fill: parent
             anchors.margins: 20
             spacing: 12
             RowLayout {
-                width: parent.width
+                Layout.fillWidth: true
                 spacing: 8
                 Text { text: qsTr("Export diagnostics"); color: theme.foreground; font.pixelSize: theme.textXl; font.weight: Font.DemiBold; Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; elide: Text.ElideRight }
                 ActionButton { tokens: root.tokens; text: "×"; compact: true; kind: "quiet"; Layout.alignment: Qt.AlignVCenter; onClicked: root.showDiagnostics = false }
             }
             Text {
-                width: parent.width
+                Layout.fillWidth: true
                 text: qsTr("This report lists detected versions and encoders, but no video paths. Check the GPU model before sharing.")
                 color: theme.muted
                 font.pixelSize: theme.textXs
                 wrapMode: Text.WordWrap
             }
             Controls.ScrollView {
-                width: parent.width
-                height: Math.max(120, parent.height - 118)
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 clip: true
                 Controls.TextArea {
                     text: root.diagnosticsText
@@ -1060,6 +1116,7 @@ Window {
                 tokens: root.tokens
                 text: qsTr("Copy diagnostics")
                 kind: "primary"
+                Layout.alignment: Qt.AlignLeft
                 onClicked: backend.copyDiagnosticReport()
             }
         }

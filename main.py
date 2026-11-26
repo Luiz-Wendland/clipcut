@@ -16,6 +16,7 @@ import threading
 import time
 import uuid
 import atexit
+import weakref
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QObject, Property, QSettings, QThread, QTimer, QUrl, Signal, Slot
@@ -34,7 +35,7 @@ EXPORT_CANCELED = "Export canceled"
 
 # Backends register themselves so the worker threads are always stopped,
 # even when the interpreter exits while analysis is still running.
-_LIVE_BACKENDS = []
+_LIVE_BACKENDS = weakref.WeakSet()
 
 
 def _shutdown_backends():
@@ -170,27 +171,42 @@ class ExportTask(QObject):
                 with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as error_log:
                     self.process = subprocess.Popen(args, stdout=subprocess.PIPE,
                                                     stderr=error_log, text=True, bufsize=1)
-                    with self.process.stdout:
-                        for line in self.process.stdout:
-                            if self.cancelled.is_set():
+                    try:
+                        with self.process.stdout:
+                            for line in self.process.stdout:
+                                if self.cancelled.is_set():
+                                    try:
+                                        self.process.terminate()
+                                    except ProcessLookupError:
+                                        pass
+                                    break
+                                if line.startswith("out_time_us="):
+                                    try:
+                                        t = int(line.split("=", 1)[1]) / 1_000_000
+                                        self.progress.emit(min(99, max(0, round(t / self.duration * 100))))
+                                    except ValueError:
+                                        pass
+                        code = self.process.wait()
+                    finally:
+                        if self.process.poll() is None:
+                            try:
+                                self.process.terminate()
+                            except ProcessLookupError:
+                                pass
+                            try:
+                                self.process.wait(timeout=2)
+                            except subprocess.TimeoutExpired:
                                 try:
-                                    self.process.terminate()
+                                    self.process.kill()
                                 except ProcessLookupError:
                                     pass
-                                break
-                            if line.startswith("out_time_us="):
-                                try:
-                                    t = int(line.split("=", 1)[1]) / 1_000_000
-                                    self.progress.emit(min(99, max(0, round(t / self.duration * 100))))
-                                except ValueError:
-                                    pass
-                        code = self.process.wait()
+                                self.process.wait()
+                        self.process = None
                     error_log.flush()
                     error_log.seek(0, os.SEEK_END)
                     error_size = error_log.tell()
                     error_log.seek(max(0, error_size - 2500))
                     error = error_log.read()
-                    self.process = None
                     return code, error
 
             code, error = execute(self.command)
@@ -302,11 +318,13 @@ class ClipBackend(QObject):
         self._preview_id = 0
         self._last_preview_path = ""
         self._tasks: dict[QThread, Task] = {}
+        self._pending_analysis: set[str] = set()
         self._export_thread = None
         self._export_task = None
         self._export_queue = []
         self._queue_running = False
         self._active_queue_job = None
+        self._queue_notice = None
         self._next_queue_id = 1
         self._shutting_down = False
         self._crop_ratio = "Original"
@@ -314,7 +332,7 @@ class ClipBackend(QObject):
         self._crop_x = self._crop_y = 0.5
         self._encoders = self._detect_encoders()
         self._gpu_name = self._preferred_gpu_name()
-        _LIVE_BACKENDS.append(self)
+        _LIVE_BACKENDS.add(self)
 
     @staticmethod
     def _detect_gpu_devices(drm_root="/sys/class/drm", dev_root="/dev/dri"):
@@ -537,7 +555,11 @@ class ClipBackend(QObject):
 
     @Property("QVariantList", notify=exportQueueChanged)
     def queuedExports(self):
-        return [{"id": job["id"], "name": job["name"], "status": job["status"]}
+        return [{"id": job["id"],
+                 "name": job["name"],
+                 "status": job["status"],
+                 "error": tr(job["error"]) if job.get("error") else "",
+                 "result": tr(job["result"]) if job.get("result") else ""}
                 for job in self._export_queue]
 
     @Property(int, notify=exportQueueChanged)
@@ -602,7 +624,11 @@ class ClipBackend(QObject):
 
     @Property(str, notify=statusChanged)
     def status(self):
-        return tr(self._status, **self._status_values)
+        translated = {
+            key: tr(value) if key == "error" and isinstance(value, str) else value
+            for key, value in self._status_values.items()
+        }
+        return tr(self._status, **translated)
 
     @Property(str, notify=languageModeChanged)
     def languageMode(self):
@@ -619,6 +645,7 @@ class ClipBackend(QObject):
         self.languageModeChanged.emit()
         self.statusChanged.emit()
         self.gpuChanged.emit()
+        self.exportQueueChanged.emit()
 
     @Property(bool, notify=reducedMotionChanged)
     def reducedMotion(self):
@@ -689,8 +716,8 @@ class ClipBackend(QObject):
             return ""
         if codec == "av1" and self._gpu_devices and not any(
                 self._supports_hardware_av1(device) for device in self._gpu_devices):
-            return tr("This GPU does not support hardware AV1 encoding. Using the CPU instead.")
-        return tr("No hardware encoder is available for this codec in this installation. Using the CPU instead.")
+            return "This GPU does not support hardware AV1 encoding. Using the CPU instead."
+        return "No hardware encoder is available for this codec in this installation. Using the CPU instead."
 
     @Slot(result=str)
     def diagnosticReport(self):
@@ -761,6 +788,7 @@ class ClipBackend(QObject):
         generation = self._generation
         self._preview_id += 1
         self._cancel_background_tasks()
+        self._cleanup_old_media_temp_files()
         self._path = path
         self._preview = self._waveform = ""
         self._thumbnails = []
@@ -775,7 +803,8 @@ class ClipBackend(QObject):
         self._crop_ratio = "Original"
         self._crop_custom = ""
         self._crop_x = self._crop_y = 0.5
-        self._set_busy(True)
+        self._pending_analysis = {"probe"}
+        self._sync_busy()
         self.fileChanged.emit()
         self.mediaChanged.emit()
         self.rangeChanged.emit()
@@ -830,6 +859,19 @@ class ClipBackend(QObject):
 
         self._run_task(probe, self._probe_done, generation, "probe")
 
+    def _cleanup_old_media_temp_files(self):
+        tmp_dir = Path(self._tmp.name)
+        current_timeline_prefix = f"timeline-{self._generation}-"
+        current_waveform_name = f"waveform-{self._generation}.png"
+        for pattern in ("timeline-*.jpg", "waveform-*.png"):
+            for path in tmp_dir.glob(pattern):
+                if path.name.startswith(current_timeline_prefix) or path.name == current_waveform_name:
+                    continue
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+
     def _cancel_background_tasks(self, kind=None):
         for task in tuple(self._tasks.values()):
             if kind is None or task.kind == kind:
@@ -862,11 +904,15 @@ class ClipBackend(QObject):
         if self._shutting_down or generation != self._generation:
             return
         if error:
+            self._path = ""
             self._thumbnail_status = "error"
             self._waveform_status = "error"
+            self._pending_analysis.clear()
+            self.fileChanged.emit()
+            self.mediaChanged.emit()
             self.previewChanged.emit()
             self.waveformChanged.emit()
-            self._set_busy(False)
+            self._sync_busy()
             self._set_status("Could not open the video")
             self.exportDone.emit(False, tr(error))
             return
@@ -876,6 +922,7 @@ class ClipBackend(QObject):
         self._sample_aspect = data.get("sample_aspect", 1.0)
         self._thumbnail_status = "loading"
         self._waveform_status = "pending" if self._audio else "none"
+        self._pending_analysis = {"thumbnails", "waveform"} if self._audio else {"thumbnails"}
         self.previewChanged.emit()
         self.waveformChanged.emit()
         self._start, self._end, self._position = 0.0, self._duration, 0.0
@@ -929,9 +976,10 @@ class ClipBackend(QObject):
     def _thumbnails_done(self, result, error, generation):
         if self._shutting_down or generation != self._generation:
             return
+        self._pending_analysis.discard("thumbnails")
         if error:
             self._thumbnail_status = "error"
-            self._set_status("Timeline unavailable: {error}", error=tr(error)[:180])
+            self._set_status("Timeline unavailable: {error}", error=error[:180])
         else:
             self._thumbnails = result
             self._thumbnail_status = "ready"
@@ -939,21 +987,24 @@ class ClipBackend(QObject):
             self._set_status("Ready to trim")
         if error:
             self.previewChanged.emit()
-        self._set_busy(False)
+        self._sync_busy()
 
     @Slot(object, str, int)
     def _waveform_done(self, result, error, generation):
         if self._shutting_down or generation != self._generation:
             return
+        self._pending_analysis.discard("waveform")
         if error:
             self._waveform_status = "error"
             self.waveformChanged.emit()
             # Keep the failure visible without hiding successfully generated thumbnails.
-            self._set_status("Ready to trim · waveform unavailable: {error}", error=tr(error)[:120])
+            self._set_status("Ready to trim · waveform unavailable: {error}", error=error[:120])
+            self._sync_busy()
             return
         self._waveform = result
         self._waveform_status = "ready"
         self.waveformChanged.emit()
+        self._sync_busy()
 
     @Slot(float)
     def requestPreview(self, seconds: float):
@@ -1199,6 +1250,8 @@ class ClipBackend(QObject):
             command += ["-c:v", "copy"]
             actual_encoder = "stream copy (no re-encoding)"
         else:
+            if quality not in QUALITY:
+                raise ValueError("Invalid quality preset.")
             qkey = "nvenc" if api == "nvenc" else codec
             q = QUALITY[quality][qkey]
             command += ["-c:v", encoder]
@@ -1321,12 +1374,14 @@ class ClipBackend(QObject):
 
     @Slot()
     def startExportQueue(self):
-        if self._queue_running or self._exporting:
+        if self._shutting_down or self._queue_running or self._exporting or self._busy:
             return
         if not any(job["status"] == "queued" for job in self._export_queue):
             self._set_status("No exports are queued.")
             return
+        self._queue_notice = None
         self._queue_running = True
+        self._sync_busy()
         self.exportQueueChanged.emit()
         self._start_next_queued_export()
 
@@ -1336,13 +1391,21 @@ class ClipBackend(QObject):
         job = next((item for item in self._export_queue if item["status"] == "queued"), None)
         if job is None:
             self._queue_running = False
+            self._sync_busy()
             self.exportQueueChanged.emit()
-            self._set_status("Export queue complete.")
+            if self._queue_notice:
+                notice, notice_values = self._queue_notice
+                self._queue_notice = None
+                self._set_status(notice, **notice_values)
+            else:
+                self._set_status("Export queue complete.")
             return
         if os.path.exists(job["output"]):
             job["status"] = "failed"
             job["error"] = "The output path was created after this job was queued."
+            self._queue_notice = ("{name}: output already exists; job skipped.", {"name": job["name"]})
             self.exportQueueChanged.emit()
+            self._set_status("{name}: output already exists; job skipped.", name=job["name"])
             self.exportDone.emit(False, tr("{name}: output already exists; job skipped.", name=job["name"]))
             QTimer.singleShot(0, self._start_next_queued_export)
             return
@@ -1357,8 +1420,8 @@ class ClipBackend(QObject):
                                  f".{Path(output).stem}-{uuid.uuid4().hex}.partial{Path(output).suffix}")
         command = list(job["command"])
         command[-1] = temp_path
-        self._set_busy(True)
         self._set_exporting(True)
+        self._sync_busy()
         self._progress = 0
         self.progressChanged.emit()
         encoder = job["encoder"]
@@ -1389,6 +1452,8 @@ class ClipBackend(QObject):
             self._active_queue_job["status"] = "done" if success else (
                 "cancelled" if message == EXPORT_CANCELED else "failed")
             self._active_queue_job["result"] = message
+            if not success and self._queue_running:
+                self._queue_notice = (message, {})
             self.exportQueueChanged.emit()
         self._set_status(message)
         if success:
@@ -1401,11 +1466,11 @@ class ClipBackend(QObject):
         self._export_task = self._export_thread = None
         if not self._shutting_down:
             self._set_exporting(False)
-            self._set_busy(False)
             if self._active_queue_job:
                 self._active_queue_job = None
                 if self._queue_running:
                     QTimer.singleShot(0, self._start_next_queued_export)
+            self._sync_busy()
 
     @Slot()
     def cancelExport(self):
@@ -1452,10 +1517,13 @@ class ClipBackend(QObject):
             if thread.isRunning():
                 thread.wait()
         self._tasks.clear()
+        self._pending_analysis.clear()
         self._export_task = self._export_thread = None
         self._tmp.cleanup()
-        if self in _LIVE_BACKENDS:
-            _LIVE_BACKENDS.remove(self)
+        _LIVE_BACKENDS.discard(self)
+
+    def _sync_busy(self):
+        self._set_busy(bool(self._pending_analysis) or self._exporting or self._queue_running)
 
     def _set_busy(self, value):
         if self._busy != value:

@@ -26,8 +26,7 @@ class LocalizationTests(unittest.TestCase):
     def test_catalog_covers_qml_and_preserves_placeholders(self):
         for path in [ROOT / "Main.qml", *(ROOT / "components").glob("*.qml")]:
             for source in re.findall(r'qsTr\("([^"]+)"\)', path.read_text(encoding="utf-8")):
-                if source != "CODEC":
-                    self.assertIn(source, PT_BR, str(path))
+                self.assertIn(source, PT_BR, str(path))
         for source, translation in PT_BR.items():
             fields = lambda s: sorted(key for _, key, _, _ in Formatter().parse(s) if key is not None)
             self.assertEqual(fields(source), fields(translation), source)
@@ -121,3 +120,32 @@ backend.shutdown()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("ReferenceError:", result.stderr)
         self.assertNotIn("TypeError:", result.stderr)
+
+    def test_hardware_encoder_status_returns_raw_key_and_translates(self):
+        from unittest.mock import MagicMock
+        from main import ClipBackend
+        from localization import tr
+
+        backend = ClipBackend()
+        try:
+            backend._gpu_devices = [{"vendor": "nvidia", "name": "NVIDIA GeForce RTX 3060 Ti",
+                                     "renderNode": ""}]
+            backend._encoders.clear()
+            av1_key = backend.hardwareEncoderStatus("av1")
+            h264_key = backend.hardwareEncoderStatus("h264")
+            self.assertEqual(
+                av1_key,
+                "This GPU does not support hardware AV1 encoding. Using the CPU instead.",
+            )
+            self.assertEqual(
+                h264_key,
+                "No hardware encoder is available for this codec in this installation. Using the CPU instead.",
+            )
+            self.assertIn(av1_key, PT_BR)
+            self.assertIn(h264_key, PT_BR)
+            backend.attach_translations(MagicMock())
+            backend.setLanguageMode("pt-BR")
+            self.assertEqual(tr(av1_key), PT_BR[av1_key])
+            self.assertEqual(tr(h264_key), PT_BR[h264_key])
+        finally:
+            backend.shutdown()

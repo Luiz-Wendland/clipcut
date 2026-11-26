@@ -17,6 +17,26 @@ APP = QCoreApplication.instance() or QCoreApplication([])
 SAMPLE_PATH = os.path.join(tempfile.gettempdir(), "source with çedilha.mp4")
 
 
+class _MemorySettings:
+    IniFormat = 1
+    UserScope = 0
+
+    def __init__(self, *args):
+        self.values = {}
+
+    def value(self, key, default="", type=None):
+        val = self.values.get(key, default)
+        if type is bool and isinstance(val, str):
+            return val.lower() == "true"
+        return val
+
+    def setValue(self, key, value):
+        self.values[key] = value
+
+    def sync(self):
+        pass
+
+
 class BackendTests(unittest.TestCase):
     def setUp(self):
         self.backend = ClipBackend()
@@ -339,23 +359,7 @@ class BackendTests(unittest.TestCase):
         self.assertNotIn(SAMPLE_PATH, report)
 
     def test_last_export_directory_is_saved_and_exposed_as_url(self):
-        class MemorySettings:
-            IniFormat = 1
-            UserScope = 0
-
-            def __init__(self, *args):
-                self.values = {}
-
-            def value(self, key, default="", type=None):
-                return self.values.get(key, default)
-
-            def setValue(self, key, value):
-                self.values[key] = value
-
-            def sync(self):
-                pass
-
-        with tempfile.TemporaryDirectory() as directory, patch("main.QSettings", MemorySettings):
+        with tempfile.TemporaryDirectory() as directory, patch("main.QSettings", _MemorySettings):
             backend = ClipBackend()
             try:
                 backend.rememberExportDirectory(directory)
@@ -572,14 +576,97 @@ class BackendTests(unittest.TestCase):
             self.wait_for_tasks_to_finish()
 
     def test_reduced_motion_preference_persists(self):
-        self.assertFalse(self.backend.reducedMotion)
-        self.backend.setReducedMotion(True)
-        self.assertTrue(self.backend.reducedMotion)
-        reloaded = ClipBackend()
-        try:
-            self.assertTrue(reloaded.reducedMotion)
-        finally:
-            reloaded.shutdown()
+        store = {}
+
+        class SharedMemorySettings(_MemorySettings):
+            def __init__(self, *args):
+                self.values = store
+
+        with patch("main.QSettings", SharedMemorySettings):
+            backend = ClipBackend()
+            try:
+                self.assertFalse(backend.reducedMotion)
+                backend.setReducedMotion(True)
+                self.assertTrue(backend.reducedMotion)
+            finally:
+                backend.shutdown()
+
+            reloaded = ClipBackend()
+            try:
+                self.assertTrue(reloaded.reducedMotion)
+            finally:
+                reloaded.shutdown()
+
+    def test_invalid_quality_raises_value_error_and_is_rejected_by_prepare_export_job(self):
+        with self.assertRaisesRegex(ValueError, "Invalid quality preset"):
+            self.backend._command("out.mp4", "h264", "Original", "3:2", "Bogus", False)
+        with tempfile.TemporaryDirectory() as directory:
+            out_path = os.path.join(directory, "out.mp4")
+            job, error = self.backend._prepare_export_job(
+                out_path, "h264", "Original", "3:2", "Bogus", False, False, 0, True)
+            self.assertIsNone(job)
+            self.assertEqual(error, "Invalid quality preset.")
+
+    def test_probe_done_error_clears_path_and_resets_busy(self):
+        self.backend._pending_analysis = {"probe"}
+        self.backend._sync_busy()
+        self.assertTrue(self.backend.busy)
+        errors = []
+        self.backend.exportDone.connect(lambda success, msg: errors.append((success, msg)))
+
+        self.backend._probe_done(None, "Could not open the video", self.backend._generation)
+
+        self.assertEqual(self.backend.filePath, "")
+        self.assertFalse(self.backend.busy)
+        self.assertEqual(self.backend.timelineImageStatus, "error")
+        self.assertEqual(self.backend.waveformStatus, "error")
+        self.assertEqual(errors[-1][0], False)
+
+    def test_busy_stays_true_across_overlapping_analysis_and_guards_export_queue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out_path = os.path.join(directory, "queued.mp4")
+            self.assertTrue(self.backend.enqueueExport(
+                out_path, "h264", "Original", "3:2", "High quality", False, 0, False))
+            self.backend._pending_analysis = {"thumbnails", "waveform"}
+            self.backend._sync_busy()
+            self.assertTrue(self.backend.busy)
+
+            # Completing thumbnails while waveform is still pending keeps busy=True.
+            self.backend._thumbnails_done([], "Thumbnail failed", self.backend._generation)
+            self.assertTrue(self.backend.busy)
+
+            # startExportQueue() must not start while analysis is busy.
+            self.backend.startExportQueue()
+            self.assertFalse(self.backend.exportQueueRunning)
+
+            # Completing waveform clears the last pending analysis task and resets busy=False.
+            self.backend._waveform_done("", "Waveform failed", self.backend._generation)
+            self.assertFalse(self.backend.busy)
+
+    def test_queued_exports_expose_translated_error_and_result(self):
+        with tempfile.TemporaryDirectory() as directory, patch("main.QSettings", _MemorySettings):
+            backend = ClipBackend()
+            try:
+                backend._path = SAMPLE_PATH
+                backend._duration = 10.0
+                backend._width, backend._height = 1920, 1080
+                backend._fps = 30.0
+                backend._start, backend._end = 1.0, 4.0
+                backend._encoders.add("libx264")
+                backend.attach_translations(MagicMock())
+                backend.setLanguageMode("pt-BR")
+
+                out_path = os.path.join(directory, "queued.mp4")
+                self.assertTrue(backend.enqueueExport(
+                    out_path, "h264", "Original", "3:2", "High quality", False, 0, False))
+                backend._export_queue[0]["error"] = "Export canceled"
+                backend._export_queue[0]["result"] = "Export complete"
+
+                exposed = backend.queuedExports[0]
+                self.assertEqual(exposed["error"], "Exportação cancelada")
+                self.assertEqual(exposed["result"], "Exportação concluída")
+            finally:
+                backend.shutdown()
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"),
                          "FFmpeg and ffprobe are required for this integration test")

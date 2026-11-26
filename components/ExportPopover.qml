@@ -85,7 +85,7 @@ Rectangle {
     }
 
     width: Math.min(390, windowWidth - 32)
-    height: Math.min(620, Math.max(320, windowHeight - tokens.timelineHeight - 110))
+    height: Math.min(620, Math.max(360, windowHeight - 36))
     x: open ? windowWidth - width - 18 : windowWidth + 8
     y: 18
     z: 21
@@ -145,7 +145,11 @@ Rectangle {
                         tokens: root.tokens
                         text: root.outputName
                         placeholderText: qsTr("Clip name")
-                        invalid: !root.outputNameValid
+                        readonly property bool outputNameTextValid: {
+                            const trimmed = text.trim()
+                            return trimmed.length > 0 && trimmed !== "." && trimmed !== ".." && !/[\/\\\x00-\x1f]/.test(text)
+                        }
+                        invalid: !outputNameTextValid
                         onEditingFinished: root.outputNameRequested(text)
                     }
                     Flow {
@@ -208,7 +212,14 @@ Rectangle {
                         width: parent.width
                         visible: root.selectedCodec !== "copy" &&
                                  !root.clipBackend.hardwareEncoderAvailable(root.selectedCodec)
-                        text: qsTr(root.clipBackend.hardwareEncoderStatus(root.selectedCodec))
+                        text: {
+                            const status = root.clipBackend.hardwareEncoderStatus(root.selectedCodec)
+                            if (status === "This GPU does not support hardware AV1 encoding. Using the CPU instead.")
+                                return qsTr("This GPU does not support hardware AV1 encoding. Using the CPU instead.")
+                            if (status === "No hardware encoder is available for this codec in this installation. Using the CPU instead.")
+                                return qsTr("No hardware encoder is available for this codec in this installation. Using the CPU instead.")
+                            return status
+                        }
                         color: root.tokens.muted
                         font.pixelSize: root.tokens.textXs
                         wrapMode: Text.WordWrap
@@ -283,13 +294,30 @@ Rectangle {
                         Rectangle {
                             width: 38; height: 24; radius: root.tokens.radiusFull
                             color: root.includeAudio ? root.tokens.accentSoft : root.tokens.surfaceHigh
+                            border.width: activeFocus ? 2 : 0
+                            border.color: root.tokens.accent
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: qsTr("Include audio track")
+                            Accessible.checked: root.includeAudio
+                            Keys.onSpacePressed: function(event) { root.audioInclusionRequested(!root.includeAudio); event.accepted = true }
+                            Keys.onReturnPressed: function(event) { root.audioInclusionRequested(!root.includeAudio); event.accepted = true }
                             anchors.verticalCenter: parent.verticalCenter
                             Rectangle { x: root.includeAudio ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.includeAudio ? root.tokens.accent : root.tokens.muted; Behavior on x { NumberAnimation { duration: root.tokens.effectFast } } }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.audioInclusionRequested(!root.includeAudio) }
                         }
-                        Column { anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: qsTr("Include audio track"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm }
-                            Text { text: root.clipBackend.hasAudio ? qsTr("Stereo AAC, 192 kb/s") : qsTr("This file has no audio"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs }
+                        Item {
+                            width: Math.max(0, parent.width - 47)
+                            height: includeAudioLabelCol.implicitHeight
+                            anchors.verticalCenter: parent.verticalCenter
+                            Column {
+                                id: includeAudioLabelCol
+                                width: parent.width
+                                spacing: 2
+                                Text { width: parent.width; text: qsTr("Include audio track"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; elide: Text.ElideRight }
+                                Text { width: parent.width; text: root.clipBackend.hasAudio ? qsTr("Stereo AAC, 192 kb/s") : qsTr("This file has no audio"); color: root.tokens.muted; font.pixelSize: root.tokens.textXs; elide: Text.ElideRight }
+                            }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.audioInclusionRequested(!root.includeAudio) }
                         }
                     }
                 }
@@ -303,11 +331,22 @@ Rectangle {
                         Rectangle {
                             width: 38; height: 24; radius: root.tokens.radiusFull
                             color: root.targetSizeEnabled ? root.tokens.accentSoft : root.tokens.surfaceHigh
+                            border.width: activeFocus ? 2 : 0
+                            border.color: root.tokens.accent
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: qsTr("Estimated size")
+                            Accessible.checked: root.targetSizeEnabled
+                            Keys.onSpacePressed: function(event) { root.targetEnabledRequested(!root.targetSizeEnabled); event.accepted = true }
+                            Keys.onReturnPressed: function(event) { root.targetEnabledRequested(!root.targetSizeEnabled); event.accepted = true }
                             anchors.verticalCenter: parent.verticalCenter
                             Rectangle { x: root.targetSizeEnabled ? 18 : 3; y: 3; width: 18; height: 18; radius: 9; color: root.targetSizeEnabled ? root.tokens.accent : root.tokens.muted; Behavior on x { NumberAnimation { duration: root.tokens.effectFast } } }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.targetEnabledRequested(!root.targetSizeEnabled) }
                         }
-                        Text { text: qsTr("Estimated size"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            text: qsTr("Estimated size"); color: root.tokens.foreground; font.pixelSize: root.tokens.textSm; anchors.verticalCenter: parent.verticalCenter
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.targetEnabledRequested(!root.targetSizeEnabled) }
+                        }
                     }
                     LineEdit {
                         id: targetSizeInput
@@ -332,13 +371,14 @@ Rectangle {
                     visible: root.clipBackend.queuedExports.length > 0
                     Repeater {
                         model: root.clipBackend.queuedExports
-                        delegate: Row {
+                        delegate: RowLayout {
                             required property var modelData
                             width: parent.width
                             height: 30
                             spacing: 6
                             Text {
-                                width: parent.width - 104
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
                                 text: modelData.name + " · " + ({
                                     queued: qsTr("Queued"), exporting: qsTr("Exporting"), done: qsTr("Completed"),
                                     failed: qsTr("Failed"), cancelled: qsTr("Canceled")
@@ -346,18 +386,18 @@ Rectangle {
                                 color: root.tokens.foreground
                                 font.pixelSize: root.tokens.textXs
                                 elide: Text.ElideMiddle
-                                anchors.verticalCenter: parent.verticalCenter
                             }
                             ActionButton {
                                 tokens: root.tokens
                                 text: qsTr("Remove")
                                 compact: true
                                 visible: modelData.status === "queued"
+                                Layout.alignment: Qt.AlignVCenter
                                 onClicked: root.removeQueueRequested(modelData.id)
                             }
                         }
                     }
-                    Row {
+                    Flow {
                         width: parent.width
                         spacing: 6
                         ActionButton {

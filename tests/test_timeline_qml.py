@@ -164,5 +164,106 @@ app.quit()
         self.assertIn("Image.PreserveAspectFit", source)
 
 
+class QmlRegressionTests(unittest.TestCase):
+    def test_disclosure_timecode_and_file_change_reset(self):
+        probe = r'''
+import sys, time
+from pathlib import Path
+from PySide6.QtCore import QObject, QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
+from PySide6.QtQuick import QQuickItem
+from shiboken6 import delete
+sys.path.insert(0, sys.argv[1])
+from main import ClipBackend
+
+app = QGuiApplication([])
+engine = QQmlApplicationEngine()
+backend = ClipBackend()
+engine.rootContext().setContextProperty("backend", backend)
+engine.load(QUrl.fromLocalFile(str(Path(sys.argv[1]) / "Main.qml")))
+assert engine.rootObjects(), "Main.qml did not load"
+root = engine.rootObjects()[0]
+
+# 1. ClipTimeline.timecode(59.999) must roll over to 01:00.00, not 00:60.00.
+timeline = root.findChild(QObject, "timelinePanel")
+assert timeline is not None
+assert timeline.timecode(59.999) == "01:00.00", timeline.timecode(59.999)
+assert timeline.timecode(119.995) == "02:00.00", timeline.timecode(119.995)
+
+# 2. onFileChanged resets selectedRatio, customRatioValue, and lastValidCustomRatio.
+root.setProperty("selectedRatio", "16:9")
+root.setProperty("customRatioValue", "4:5")
+root.setProperty("lastValidCustomRatio", "4:5")
+backend.fileChanged.emit()
+app.processEvents()
+assert root.property("selectedRatio") == "Original", root.property("selectedRatio")
+assert root.property("customRatioValue") == "", root.property("customRatioValue")
+assert root.property("lastValidCustomRatio") == "3:2", root.property("lastValidCustomRatio")
+
+# 3. Disclosure expand/collapse tracks dynamic content implicitHeight.
+qml = """
+import QtQuick
+import "components"
+Item {
+    width: 300; height: 400
+    DesignTokens { id: dt; reducedMotion: true }
+    Disclosure {
+        id: disc
+        objectName: "testDisclosure"
+        width: 280
+        tokens: dt
+        title: "Section"
+        Rectangle {
+            id: inner
+            objectName: "innerRect"
+            width: 200
+            implicitHeight: 30
+            height: implicitHeight
+        }
+    }
+}
+"""
+comp = QQmlComponent(engine)
+comp.setData(qml.encode("utf-8"), QUrl.fromLocalFile(str(Path(sys.argv[1]) / "dummy.qml")))
+assert comp.isReady(), comp.errors()
+obj = comp.create()
+obj.setParentItem(root.contentItem())
+disc = obj.findChild(QQuickItem, "testDisclosure")
+inner = obj.findChild(QQuickItem, "innerRect")
+body = disc.childItems()[1]
+
+def wait_height(expected):
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        app.processEvents()
+        if body.height() == expected:
+            return
+        time.sleep(0.01)
+    assert body.height() == expected, f"expected height {expected}, got {body.height()}"
+
+wait_height(38)
+inner.setProperty("implicitHeight", 70)
+wait_height(78)
+disc.setProperty("expanded", False)
+wait_height(0)
+disc.setProperty("expanded", True)
+wait_height(78)
+
+delete(obj)
+delete(comp)
+backend.shutdown()
+app.quit()
+'''
+        environment = os.environ.copy()
+        environment["QT_QPA_PLATFORM"] = "offscreen"
+        environment["QT_QUICK_BACKEND"] = "software"
+        result = subprocess.run(
+            [sys.executable, "-c", probe, str(ROOT)],
+            cwd=ROOT, env=environment, capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
